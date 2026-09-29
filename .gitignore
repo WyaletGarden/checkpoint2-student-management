@@ -133,3 +133,8 @@ venv.bak
 .mypy_stubs/
 🗜️ # UV package manager locks/caches (Giữ lại pyproject.toml và uv.lock, chỉ bỏ qua file cache hoặc môi trường nội bộ của uv)
 .uv_cache/
+
+# SQLite database files
+*.db
+*.sqlite
+*.sqlite3
