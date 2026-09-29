@@ -1,0 +1,135 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C/C++ extensions
+*.so
+
+# Distribution / packaging
+.bin
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For a library or package, you might want to ignore these files since they are
+#   intended to be run in copies of python specified by pyenv - but for applications
+#   you may want to keep them under version control
+.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to checkin Pipfile.lock into version control.
+#   However, in case of ecosystem workflows, you can choose to ignore these.
+# pipfile.lock
+
+# Poetry
+#   Similar to Pipfile.lock, it is generally recommended to checkin poetry.lock into version control.
+# poetry.lock
+
+# pdm
+#   Similar to Pipfile.lock, it is generally recommended to checkin pdm.lock into version control.
+# pdm.lock
+#   pdm virtual environment directory
+.pdm-python
+.pdm-build/
+
+# PEP 582; used by e.g. PDM, Hatch, and some others
+__pypackages__
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+venv/
+ENV/
+env.bak
+venv.bak
+
+# Spyder project settings
+.spyderproject
+.spyderworkspace
+
+# Rope project settings
+.ropeproject
+
+# PyCharm template
+.idea/
+
+# VS Code settings
+.vscode/
+
+# MyPy
+.mypy_stubs/
+🗜️ # UV package manager locks/caches (Giữ lại pyproject.toml và uv.lock, chỉ bỏ qua file cache hoặc môi trường nội bộ của uv)
+.uv_cache/
