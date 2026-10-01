@@ -1,4 +1,3 @@
-import traceback
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from app.core.config import settings
@@ -17,8 +16,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     Bắt mọi lỗi không mong muốn (Unhandled Exceptions / 500 Internal Server Error)
     Ngăn chặn việc lộ Traceback ra bên ngoài và trả về JSON thống nhất.
     """
-    # (Khuyên dùng) Bạn có thể ghi log lỗi ở đây để dev debug ngầm, ví dụ: print(traceback.format_exc())
-    
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
