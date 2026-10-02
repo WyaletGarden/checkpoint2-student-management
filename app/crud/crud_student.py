@@ -22,9 +22,14 @@ def update_student(db: Session, student_id: int, student: StudentUpdate):
     db_student = get_student(db, student_id)
     if not db_student:
         return None
-    db_student.name = student.name
-    db_student.class_id = student.class_id
-    db_student.score = student.score
+    
+    # Lấy ra các dictionary chỉ gồm những field mà client thực sự truyền lên
+    update_data = student.model_dump(exclude_unset=True)
+    
+    # Gán giá trị mới cho đúng các field đó, giữ nguyên các field cũ nếu không được truyền
+    for key, value in update_data.items():
+        setattr(db_student, key, value)
+        
     db.commit()
     db.refresh(db_student)
     return db_student
