@@ -6,7 +6,7 @@
     <title>Quản lý Học sinh - Student Management</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Alpine.js để quản lý trạng thái giao diện nhanh chóng -->
+    <!-- Alpine.js để quản lý trạng thái giao diện -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans" x-data="studentApp()">
@@ -23,13 +23,33 @@
             </button>
         </header>
 
-        <!-- Thanh công cụ (Bộ lọc & Tìm kiếm) -->
+        <!-- Thanh công cụ (Bộ lọc & Sắp xếp) -->
         <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
-            <div class="flex items-center gap-2">
-                <label class="text-sm font-medium text-gray-600">Lọc theo mã lớp:</label>
-                <input type="text" x-model="filterClassId" @input.debounce.300ms="fetchStudents()" placeholder="Nhập mã lớp (VD: IT1)..." class="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex flex-wrap items-center gap-4">
+                <!-- Lọc theo lớp -->
+                <div class="flex items-center gap-2">
+                    <label class="text-sm font-medium text-gray-600">Lọc lớp:</label>
+                    <select x-model="filterClassId" @change="fetchStudents()" class="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        <option value="">-- Tất cả --</option>
+                        <template x-for="cls in availableClasses" :key="cls">
+                            <option :value="cls" x-text="cls"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <!-- Sắp xếp -->
+                <div class="flex items-center gap-2">
+                    <label class="text-sm font-medium text-gray-600">Sắp xếp:</label>
+                    <select x-model="sortBy" @change="fetchStudents()" class="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                        <option value="">Mặc định (Mới nhất)</option>
+                        <option value="first_name">Theo Tên (A - Z)</option>
+                        <option value="score_desc">Điểm: Cao đến thấp</option>
+                        <option value="score_asc">Điểm: Thấp đến cao</option>
+                    </select>
+                </div>
             </div>
-            <button @click="fetchStudents()" class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-medium transition">🔄 Làm mới</button>
+
+            <button @click="initData()" class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-medium transition">🔄 Làm mới</button>
         </div>
 
         <!-- Bảng danh sách học sinh -->
@@ -38,7 +58,8 @@
                 <thead>
                     <tr class="bg-gray-100 text-gray-600 text-xs uppercase tracking-wider">
                         <th class="py-3 px-4">ID</th>
-                        <th class="py-3 px-4">Họ và tên</th>
+                        <th class="py-3 px-4">Họ và tên đệm</th>
+                        <th class="py-3 px-4">Tên</th>
                         <th class="py-3 px-4">Mã lớp</th>
                         <th class="py-3 px-4">Điểm số</th>
                         <th class="py-3 px-4 text-center">Hành động</th>
@@ -48,7 +69,8 @@
                     <template x-for="student in students" :key="student.id">
                         <tr class="hover:bg-gray-50 transition">
                             <td class="py-3 px-4 font-medium text-gray-500" x-text="student.id"></td>
-                            <td class="py-3 px-4 font-semibold text-gray-800" x-text="student.name"></td>
+                            <td class="py-3 px-4 text-gray-700" x-text="student.last_name"></td>
+                            <td class="py-3 px-4 font-semibold text-gray-900" x-text="student.first_name"></td>
                             <td class="py-3 px-4">
                                 <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-xs font-medium" x-text="student.class_id"></span>
                             </td>
@@ -63,7 +85,7 @@
                     </template>
                     <template x-if="students.length === 0">
                         <tr>
-                            <td colspan="5" class="py-6 text-center text-gray-400">Không tìm thấy học sinh nào.</td>
+                            <td colspan="6" class="py-6 text-center text-gray-400">Không tìm thấy học sinh nào.</td>
                         </tr>
                     </template>
                 </tbody>
@@ -76,9 +98,15 @@
                 <h3 class="text-xl font-bold mb-4 text-gray-800" x-text="isEditMode ? 'Chỉnh sửa thông tin học sinh' : 'Thêm học sinh mới'"></h3>
                 
                 <form @submit.prevent="submitForm()" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Họ và tên</label>
-                        <input type="text" x-model="form.name" required class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập họ tên...">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Họ và tên đệm</label>
+                            <input type="text" x-model="form.last_name" required class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="VD: Nguyễn Đức">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Tên chính</label>
+                            <input type="text" x-model="form.first_name" required class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="VD: Hùng">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 mb-1">Mã lớp</label>
@@ -100,29 +128,45 @@
 
     <!-- Script kết nối API -->
     <script>
-        const API_URL = "http://127.0.0.1:8000/api/v1/students";
+        const API_URL = "/api/v1/students";
 
         function studentApp() {
             return {
                 students: [],
+                availableClasses: [],
                 filterClassId: '',
+                sortBy: '',
                 showModal: false,
                 isEditMode: false,
                 currentId: null,
                 form: {
-                    name: '',
+                    last_name: '',
+                    first_name: '',
                     class_id: '',
                     score: 0
                 },
 
-                // Lấy danh sách học sinh
+                // Lấy danh sách các lớp học
+                async fetchClasses() {
+                    try {
+                        const response = await fetch(`${API_URL}/classes`);
+                        if (response.ok) {
+                            this.availableClasses = await response.json();
+                        }
+                    } catch (error) {
+                        console.error("Lỗi khi tải danh sách lớp:", error);
+                    }
+                },
+
+                // Lấy danh sách học sinh (hỗ trợ lọc lớp và sắp xếp)
                 async fetchStudents() {
                     try {
-                        let url = `${API_URL}/`;
-                        if (this.filterClassId) {
-                            url += `?class_id=${encodeURIComponent(this.filterClassId)}`;
-                        }
-                        const response = await fetch(url);
+                        let url = `${API_URL}/?`;
+                        let params = [];
+                        if (this.filterClassId) params.push(`class_id=${encodeURIComponent(this.filterClassId)}`);
+                        if (this.sortBy) params.push(`sort_by=${encodeURIComponent(this.sortBy)}`);
+                        
+                        const response = await fetch(url + params.join('&'));
                         if (response.ok) {
                             this.students = await response.json();
                         }
@@ -131,15 +175,26 @@
                     }
                 },
 
-                // Mở modal (Thêm hoặc Sửa)
+                // Làm mới dữ liệu
+                async initData() {
+                    await this.fetchClasses();
+                    await this.fetchStudents();
+                },
+
+                // Mở modal Thêm / Sửa
                 openModal(mode, student = null) {
                     this.isEditMode = (mode === 'edit');
                     if (this.isEditMode && student) {
                         this.currentId = student.id;
-                        this.form = { name: student.name, class_id: student.class_id, score: student.score };
+                        this.form = { 
+                            last_name: student.last_name, 
+                            first_name: student.first_name, 
+                            class_id: student.class_id, 
+                            score: student.score 
+                        };
                     } else {
                         this.currentId = null;
-                        this.form = { name: '', class_id: '', score: '' };
+                        this.form = { last_name: '', first_name: '', class_id: '', score: '' };
                     }
                     this.showModal = true;
                 },
@@ -149,7 +204,7 @@
                     this.showModal = false;
                 },
 
-                // Gửi form (POST hoặc PUT)
+                // Gửi form (Thêm mới hoặc Cập nhật)
                 async submitForm() {
                     try {
                         let url = API_URL + "/";
@@ -170,7 +225,7 @@
 
                         if (response.ok) {
                             this.closeModal();
-                            this.fetchStudents();
+                            this.initData();
                         } else {
                             const errData = await response.json();
                             alert("Lỗi: " + JSON.stringify(errData.detail || errData));
@@ -188,7 +243,7 @@
                                 method: "DELETE"
                             });
                             if (response.status === 204) {
-                                this.fetchStudents();
+                                this.initData();
                             } else {
                                 alert("Không thể xóa học sinh này.");
                             }
@@ -200,7 +255,7 @@
 
                 // Khởi chạy khi load trang
                 init() {
-                    this.fetchStudents();
+                    this.initData();
                 }
             }
         }

@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from app.api.deps import get_db
+from app.core.database import get_db
 from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse
 from app.services.student_service import StudentService
 
@@ -11,11 +11,16 @@ router = APIRouter(prefix="/students", tags=["Students"])
 @router.get("/", response_model=List[StudentResponse])
 def get_students(
     class_id: Optional[str] = None,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
+    sort_by: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    return StudentService.get_all_students(db, class_id=class_id, skip=skip, limit=limit)
+    return StudentService.get_all_students(db, class_id=class_id, sort_by=sort_by, skip=skip, limit=limit)
+
+@router.get("/classes", response_model=List[str])
+def get_classes(db: Session = Depends(get_db)):
+    return StudentService.get_all_classes(db)
 
 @router.get("/{id}", response_model=StudentResponse)
 def get_student(id: int, db: Session = Depends(get_db)):

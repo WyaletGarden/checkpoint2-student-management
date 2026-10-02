@@ -1,19 +1,20 @@
-from typing import Optional
 from pydantic import BaseModel, Field
+from typing import Optional
 
 class StudentBase(BaseModel):
-    name: str = Field(..., min_length=1, description="Tên học sinh")
-    class_id: str = Field(..., min_length=1, description="Mã lớp")
-    score: float = Field(..., ge=0.0, le=10.0, description="Điểm số từ 0-10")
+    last_name: str = Field(..., description="Họ và tên đệm")
+    first_name: str = Field(..., description="Tên chính")
+    class_id: str = Field(..., description="Mã lớp")
+    score: float = Field(..., ge=0.0, le=10.0, description="Điểm số từ 0 đến 10")
 
 class StudentCreate(StudentBase):
     pass
 
-# Cập nhật schema dùng cho PUT/PATCH với các trường đều là Optional
 class StudentUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, description="Tên học sinh")
-    class_id: Optional[str] = Field(None, description="Mã lớp")
-    score: Optional[float] = Field(None, ge=0.0, le=10.0, description="Điểm số")
+    last_name: Optional[str] = None
+    first_name: Optional[str] = None
+    class_id: Optional[str] = None
+    score: Optional[float] = Field(None, ge=0.0, le=10.0)
 
 class StudentResponse(StudentBase):
     id: int
