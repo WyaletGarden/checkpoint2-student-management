@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Học sinh - Student Management</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js để quản lý trạng thái giao diện nhanh chóng -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans" x-data="studentApp()">
+
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- Tiêu đề -->
+        <header class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-blue-600">🎓 Quản lý Học sinh</h1>
+                <p class="text-sm text-gray-500 mt-1">Hệ thống FastAPI & Giao diện thuần túy</p>
+            </div>
+            <button @click="openModal('create')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow transition">
+                + Thêm Học Sinh
+            </button>
+        </header>
+
+        <!-- Thanh công cụ (Bộ lọc & Tìm kiếm) -->
+        <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-gray-600">Lọc theo mã lớp:</label>
+                <input type="text" x-model="filterClassId" @input.debounce.300ms="fetchStudents()" placeholder="Nhập mã lớp (VD: IT1)..." class="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button @click="fetchStudents()" class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg font-medium transition">🔄 Làm mới</button>
+        </div>
+
+        <!-- Bảng danh sách học sinh -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-100 text-gray-600 text-xs uppercase tracking-wider">
+                        <th class="py-3 px-4">ID</th>
+                        <th class="py-3 px-4">Họ và tên</th>
+                        <th class="py-3 px-4">Mã lớp</th>
+                        <th class="py-3 px-4">Điểm số</th>
+                        <th class="py-3 px-4 text-center">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 text-sm">
+                    <template x-for="student in students" :key="student.id">
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="py-3 px-4 font-medium text-gray-500" x-text="student.id"></td>
+                            <td class="py-3 px-4 font-semibold text-gray-800" x-text="student.name"></td>
+                            <td class="py-3 px-4">
+                                <span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-xs font-medium" x-text="student.class_id"></span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span :class="student.score >= 5 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'" x-text="student.score"></span>
+                            </td>
+                            <td class="py-3 px-4 text-center space-x-2">
+                                <button @click="openModal('edit', student)" class="text-amber-600 hover:text-amber-800 font-medium text-xs bg-amber-50 px-2.5 py-1 rounded">Sửa</button>
+                                <button @click="deleteStudent(student.id)" class="text-red-600 hover:text-red-800 font-medium text-xs bg-red-50 px-2.5 py-1 rounded">Xóa</button>
+                            </td>
+                        </tr>
+                    </template>
+                    <template x-if="students.length === 0">
+                        <tr>
+                            <td colspan="5" class="py-6 text-center text-gray-400">Không tìm thấy học sinh nào.</td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Modal Thêm / Sửa -->
+        <div x-show="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" style="display: none;">
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl" @click.away="closeModal()">
+                <h3 class="text-xl font-bold mb-4 text-gray-800" x-text="isEditMode ? 'Chỉnh sửa thông tin học sinh' : 'Thêm học sinh mới'"></h3>
+                
+                <form @submit.prevent="submitForm()" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Họ và tên</label>
+                        <input type="text" x-model="form.name" required class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập họ tên...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Mã lớp</label>
+                        <input type="text" x-model="form.class_id" required class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập mã lớp...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Điểm số (0 - 10)</label>
+                        <input type="number" step="0.1" min="0" max="10" x-model.number="form.score" required class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập điểm...">
+                    </div>
+
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button type="button" @click="closeModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition">Hủy</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow transition" x-text="isEditMode ? 'Cập nhật' : 'Thêm mới'"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script kết nối API -->
+    <script>
+        const API_URL = "http://127.0.0.1:8000/api/v1/students";
+
+        function studentApp() {
+            return {
+                students: [],
+                filterClassId: '',
+                showModal: false,
+                isEditMode: false,
+                currentId: null,
+                form: {
+                    name: '',
+                    class_id: '',
+                    score: 0
+                },
+
+                // Lấy danh sách học sinh
+                async fetchStudents() {
+                    try {
+                        let url = `${API_URL}/`;
+                        if (this.filterClassId) {
+                            url += `?class_id=${encodeURIComponent(this.filterClassId)}`;
+                        }
+                        const response = await fetch(url);
+                        if (response.ok) {
+                            this.students = await response.json();
+                        }
+                    } catch (error) {
+                        console.error("Lỗi khi kết nối API:", error);
+                    }
+                },
+
+                // Mở modal (Thêm hoặc Sửa)
+                openModal(mode, student = null) {
+                    this.isEditMode = (mode === 'edit');
+                    if (this.isEditMode && student) {
+                        this.currentId = student.id;
+                        this.form = { name: student.name, class_id: student.class_id, score: student.score };
+                    } else {
+                        this.currentId = null;
+                        this.form = { name: '', class_id: '', score: '' };
+                    }
+                    this.showModal = true;
+                },
+
+                // Đóng modal
+                closeModal() {
+                    this.showModal = false;
+                },
+
+                // Gửi form (POST hoặc PUT)
+                async submitForm() {
+                    try {
+                        let url = API_URL + "/";
+                        let method = "POST";
+
+                        if (this.isEditMode) {
+                            url += `${this.currentId}`;
+                            method = "PUT";
+                        }
+
+                        const response = await fetch(url, {
+                            method: method,
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify(this.form)
+                        });
+
+                        if (response.ok) {
+                            this.closeModal();
+                            this.fetchStudents();
+                        } else {
+                            const errData = await response.json();
+                            alert("Lỗi: " + JSON.stringify(errData.detail || errData));
+                        }
+                    } catch (error) {
+                        console.error("Lỗi kết nối:", error);
+                    }
+                },
+
+                // Xóa học sinh
+                async deleteStudent(id) {
+                    if (confirm("Bạn có chắc chắn muốn xóa học sinh này không?")) {
+                        try {
+                            const response = await fetch(`${API_URL}/${id}`, {
+                                method: "DELETE"
+                            });
+                            if (response.status === 204) {
+                                this.fetchStudents();
+                            } else {
+                                alert("Không thể xóa học sinh này.");
+                            }
+                        } catch (error) {
+                            console.error("Lỗi kết nối:", error);
+                        }
+                    }
+                },
+
+                // Khởi chạy khi load trang
+                init() {
+                    this.fetchStudents();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
