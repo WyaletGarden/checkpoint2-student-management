@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 from app.crud.crud_student import (
     get_students,
     get_student,
@@ -28,13 +29,20 @@ class StudentService:
     def get_student_by_id(db: Session, student_id: int):
         logger.info(f"Yêu cầu lấy thông tin học sinh ID: {student_id}")
         student = get_student(db, student_id)
+        
+        # KIỂM TRA: Nếu không tìm thấy học sinh, chủ động văng lỗi 404
         if not student:
             logger.warning(f"Không tìm thấy học sinh với ID: {student_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy học sinh với ID {student_id}"
+            )
+            
         return student
 
     @staticmethod
     def create_new_student(db: Session, student_in: StudentCreate):
-        logger.info(f"Yêu cầu tạo mới học sinh: {student_in.last_name} {student_in.first_name} (Lớp: {student_in.class_id})")
+        logger.info(f"Yêu cầu tạo mới học sinh: {student_in.last_name} {student_in.first_name}")
         return create_student(db=db, student=student_in)
 
     @staticmethod
@@ -43,6 +51,10 @@ class StudentService:
         updated = update_student(db=db, student_id=student_id, student=student_in)
         if not updated:
             logger.warning(f"Không thể cập nhật, không tìm thấy học sinh ID: {student_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy học sinh với ID {student_id} để cập nhật"
+            )
         return updated
 
     @staticmethod
@@ -51,4 +63,8 @@ class StudentService:
         deleted = delete_student(db=db, student_id=student_id)
         if not deleted:
             logger.warning(f"Không thể xóa, không tìm thấy học sinh ID: {student_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Không tìm thấy học sinh với ID {student_id} để xóa"
+            )
         return deleted

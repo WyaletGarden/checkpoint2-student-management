@@ -19,6 +19,10 @@ def get_students(db: Session, class_id: str | None = None, sort_by: str | None =
         query = query.order_by(StudentModel.score.desc())
     elif sort_by == "score_asc":
         query = query.order_by(StudentModel.score.asc())
+    elif sort_by == "id_desc":
+        query = query.order_by(StudentModel.id.desc())  
+    elif sort_by == "id_asc":
+        query = query.order_by(StudentModel.id.asc())
     else:
         # Mặc định sắp xếp theo ID mới nhất
         query = query.order_by(StudentModel.id.desc())
