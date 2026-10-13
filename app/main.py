@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.database import Base, engine
+import app.models  # Import tất cả các model để SQLAlchemy nhận diện và tạo bảng
 
 # Khởi tạo bảng CSDL
 Base.metadata.create_all(bind=engine)

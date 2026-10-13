@@ -10,19 +10,13 @@ router = APIRouter(prefix="/students", tags=["Students"])
 
 @router.get("/", response_model=List[StudentResponse])
 def get_students(
-    class_id: Optional[str] = None,
-    # Sử dụng Literal để giới hạn các giá trị hợp lệ. 
-    # Nếu truyền sai (ví dụ: sort_by=xxx), FastAPI sẽ tự động từ chối và trả về HTTP 422.
-    sort_by: Optional[Literal["score", "score_asc", "score_desc", "first_name", "last_name", "id", "id_asc", "id_desc"]] = None,
+    class_id: Optional[int] = None,
+    sort_by: Optional[Literal["score_asc", "score_desc", "first_name", "last_name"]] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
     return StudentService.get_all_students(db, class_id=class_id, sort_by=sort_by, skip=skip, limit=limit)
-
-@router.get("/classes", response_model=List[str])
-def get_classes(db: Session = Depends(get_db)):
-    return StudentService.get_all_classes(db)
 
 @router.get("/{id}", response_model=StudentResponse)
 def get_student(id: int, db: Session = Depends(get_db)):
