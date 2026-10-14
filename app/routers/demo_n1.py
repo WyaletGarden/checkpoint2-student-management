@@ -1,21 +1,22 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload  # 1. Import joinedload từ sqlalchemy.orm
 from app.core.database import get_db
 from app.models.student import Student
 
 router = APIRouter(prefix="/demo", tags=["Demo N+1 Query"])
 
-@router.get("/n-plus-1")
-def get_students_with_n_plus_1(db: Session = Depends(get_db)):
-    # 1. Truy vấn lấy toàn bộ danh sách sinh viên (Câu lệnh SELECT đầu tiên)
-    students = db.query(Student).all()
+@router.get("/fixed-n-plus-1")
+def get_students_fixed(db: Session = Depends(get_db)):
+    # 2. Thêm .options(joinedload(Student.class_room)) vào câu query
+    # Câu lệnh này sẽ tự động sinh ra cú pháp SQL JOIN bảng classes ngay lập tức.
+    students = db.query(Student).options(joinedload(Student.class_room)).all()
     
     response_data = []
     
-    # 2. Vòng lặp qua từng sinh viên
+    # 3. Vòng lặp duyệt qua danh sách sinh viên
     for student in students:
-        # 🛑 GÂY LỖI N+1: Truy cập student.class_room.class_name làm SQLAlchemy 
-        # phải bắn thêm 1 câu lệnh SELECT riêng lẻ cho mỗi sinh viên.
+        # Lúc này class_room đã được "nạp sẵn" từ đầu, vòng lặp chạy cực nhanh
+        # và hoàn toàn KHÔNG phát sinh thêm bất kỳ câu lệnh SQL nào nữa!
         class_name = student.class_room.class_name if student.class_room else "Chưa phân lớp"
         
         response_data.append({
@@ -25,7 +26,7 @@ def get_students_with_n_plus_1(db: Session = Depends(get_db)):
         })
         
     return {
-        "message": "Đã thực thi API gây lỗi N+1 Query!",
+        "message": "Đã tối ưu thành công! Xử lý lỗi N+1 bằng joinedload.",
         "total_students": len(students),
         "data": response_data
     }
