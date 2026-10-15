@@ -50,11 +50,11 @@
                         <div class="flex gap-4 items-center">
                             <h2 class="text-lg font-semibold text-slate-700">Danh sách Sinh viên</h2>
                             <!-- Bộ lọc Lớp -->
-                            <select id="filter-class" onchange="loadStudents()" class="border rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                            <select id="filter-class" onchange="resetStudentPage()" class="border rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500">
                                 <option value="">-- Tất cả các lớp --</option>
                             </select>
                             <!-- Bộ lọc Sắp xếp -->
-                            <select id="sort-by" onchange="loadStudents()" class="border rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                            <select id="sort-by" onchange="resetStudentPage()" class="border rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500">
                                 <option value="">-- Sắp xếp mặc định --</option>
                                 <option value="first_name">Sắp xếp theo Tên (A-Z)</option>
                                 <option value="score_desc">Điểm TB: Cao đến Thấp</option>
@@ -240,7 +240,104 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
-        const API_BASE = "http://127.0.0.1:8000/api/v1";
+        const API_BASE = "/api/v1";
+
+        const PAGE_SIZE = 20;
+        const pagination = Object.fromEntries(['students', 'classes', 'teachers'].map(
+            group => [group, {skip: 0, renderedSkip: 0, total: 0, request: 0, busy: false}]
+        ));
+
+        async function apiRequest(url, options) {
+            let response;
+            try {
+                response = await fetch(url, options);
+            } catch {
+                throw new Error('Không thể kết nối máy chủ. Vui lòng thử lại.');
+            }
+            if (!response.ok) {
+                let message = `Yêu cầu thất bại (HTTP ${response.status})`;
+                try {
+                    const error = await response.json();
+                    if (typeof error.detail === 'string') message = error.detail;
+                    else if (Array.isArray(error.detail)) message = error.detail.map(item => item.msg).join('; ');
+                } catch { /* Preserve fallback for non-JSON error responses. */ }
+                throw new Error(message);
+            }
+            return response;
+        }
+
+        function withErrors(action) {
+            return async (...args) => {
+                try { return await action(...args); }
+                catch (error) { alert(error.message || 'Đã xảy ra lỗi. Vui lòng thử lại.'); }
+            };
+        }
+
+        async function loadAll(group) {
+            const records = [];
+            let total;
+            do {
+                const response = await apiRequest(`${API_BASE}/${group}/?skip=${records.length}&limit=100`);
+                const page = await response.json();
+                total = Number(response.headers.get('X-Total-Count'));
+                records.push(...page);
+                if (page.length === 0) break;
+            } while (records.length < total);
+            return records;
+        }
+
+        function renderPagination(group) {
+            const state = pagination[group];
+            const container = document.getElementById(`pagination-${group}`);
+            const previous = createTextElement('button', 'Trước', 'border rounded px-3 py-1 disabled:opacity-40');
+            const next = createTextElement('button', 'Sau', 'border rounded px-3 py-1 disabled:opacity-40');
+            previous.type = next.type = 'button';
+            previous.disabled = state.busy || state.skip === 0;
+            next.disabled = state.busy || state.skip + PAGE_SIZE >= state.total;
+            const move = offset => {
+                state.skip += offset;
+                return ({students: loadStudents, classes: loadClasses, teachers: loadTeachers})[group]();
+            };
+            previous.addEventListener('click', () => move(-PAGE_SIZE));
+            next.addEventListener('click', () => move(PAGE_SIZE));
+            const label = createTextElement('span', `Trang ${Math.floor(state.skip / PAGE_SIZE) + 1}/${Math.max(1, Math.ceil(state.total / PAGE_SIZE))} · ${state.total} bản ghi`);
+            container.replaceChildren(previous, label, next);
+        }
+
+        async function loadPage(group, params = new URLSearchParams()) {
+            const state = pagination[group];
+            const request = ++state.request;
+            state.busy = true;
+            renderPagination(group);
+            try {
+                params.set('skip', state.skip);
+                params.set('limit', PAGE_SIZE);
+                const response = await apiRequest(`${API_BASE}/${group}/?${params}`);
+                const records = await response.json();
+                if (request !== state.request) return null;
+                state.total = Number(response.headers.get('X-Total-Count'));
+                if (state.skip > 0 && state.skip >= state.total) {
+                    state.skip = Math.max(0, Math.ceil(state.total / PAGE_SIZE) - 1) * PAGE_SIZE;
+                    return await loadPage(group, params);
+                }
+                state.renderedSkip = state.skip;
+                return records;
+            } catch (error) {
+                if (request !== state.request) return null;
+                state.skip = state.renderedSkip;
+                throw error;
+            } finally {
+                if (request === state.request) {
+                    state.busy = false;
+                    renderPagination(group);
+                }
+            }
+        }
+
+        function resetStudentPage() {
+            pagination.students.skip = 0;
+            loadStudents();
+        }
 
         function switchTab(tab) {
             document.getElementById('tab-students').classList.add('hidden');
@@ -331,112 +428,136 @@
             document.getElementById('teacher-modal').classList.remove('hidden');
         }
 
+        // API values are text, never HTML or executable event attributes.
+        function createTextElement(tag, value, className = '') {
+            const element = document.createElement(tag);
+            element.textContent = value ?? '';
+            element.className = className;
+            return element;
+        }
+
+        function appendCell(row, value, className = 'p-4') {
+            const cell = createTextElement('td', value, className);
+            row.append(cell);
+            return cell;
+        }
+
+        function appendBadge(row, value, className) {
+            const cell = appendCell(row, '');
+            cell.append(createTextElement('span', value, className));
+        }
+
+        function appendActions(row, onEdit, type, id) {
+            const cell = appendCell(row, '', 'p-4 flex gap-3');
+            const editButton = createTextElement('button', 'Sửa', 'text-blue-600 hover:text-blue-800 font-medium');
+            editButton.type = 'button';
+            editButton.addEventListener('click', onEdit);
+            const deleteButton = createTextElement('button', 'Xóa', 'text-red-500 hover:text-red-700 font-medium');
+            deleteButton.type = 'button';
+            deleteButton.addEventListener('click', () => deleteItem(type, id));
+            cell.append(editButton, deleteButton);
+        }
+
+        function renderRows(bodyId, records, columnCount, emptyMessage, buildRow) {
+            const fragment = document.createDocumentFragment();
+            for (const record of records) {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-slate-50';
+                buildRow(row, record);
+                fragment.append(row);
+            }
+            if (records.length === 0) {
+                const row = document.createElement('tr');
+                const cell = appendCell(row, emptyMessage, 'p-4 text-center text-slate-400');
+                cell.colSpan = columnCount;
+                fragment.append(row);
+            }
+            document.getElementById(bodyId).replaceChildren(fragment);
+        }
+
+        function renderOptions(selectId, placeholder, records, getLabel) {
+            const fragment = document.createDocumentFragment();
+            const defaultOption = createTextElement('option', placeholder);
+            defaultOption.value = '';
+            fragment.append(defaultOption);
+            for (const record of records) {
+                const option = createTextElement('option', getLabel(record));
+                option.value = record.id;
+                fragment.append(option);
+            }
+            const select = document.getElementById(selectId);
+            const previous = select.value;
+            select.replaceChildren(fragment);
+            if (Array.from(select.options).some(option => option.value === previous)) select.value = previous;
+        }
+
         async function loadClassDropdown() {
-            let res = await fetch(`${API_BASE}/classes/`);
-            let classes = await res.json();
-            let options = '<option value="">-- Chọn lớp quản lý --</option>';
-            classes.forEach(c => {
-                options += `<option value="${c.id}">${c.class_code} - ${c.class_name}</option>`;
-            });
-            document.getElementById('s_class_id').innerHTML = options;
+            const classes = await loadAll('classes');
+            renderOptions('s_class_id', '-- Chọn lớp quản lý --', classes,
+                c => `${c.class_code} - ${c.class_name}`);
         }
 
         async function loadFilterClassDropdown() {
-            let res = await fetch(`${API_BASE}/classes/`);
-            let classes = await res.json();
-            let options = '<option value="">-- Tất cả các lớp --</option>';
-            classes.forEach(c => {
-                options += `<option value="${c.id}">${c.class_code} - ${c.class_name}</option>`;
-            });
-            document.getElementById('filter-class').innerHTML = options;
+            const classes = await loadAll('classes');
+            renderOptions('filter-class', '-- Tất cả các lớp --', classes,
+                c => `${c.class_code} - ${c.class_name}`);
         }
 
         async function loadTeacherDropdown() {
-            let res = await fetch(`${API_BASE}/teachers/`);
-            let teachers = await res.json();
-            let options = '<option value="">-- Chọn giảng viên cố vấn --</option>';
-            teachers.forEach(t => {
-                options += `<option value="${t.id}">${t.teacher_code} - ${t.last_name} ${t.first_name}</option>`;
-            });
-            document.getElementById('c_teacher_id').innerHTML = options;
+            const teachers = await loadAll('teachers');
+            renderOptions('c_teacher_id', '-- Chọn giảng viên cố vấn --', teachers,
+                t => `${t.teacher_code} - ${t.last_name} ${t.first_name}`);
         }
 
         async function loadStudents() {
-            let classId = document.getElementById('filter-class').value;
-            let sortBy = document.getElementById('sort-by').value;
-            
-            let url = `${API_BASE}/students/?`;
-            if (classId) url += `class_id=${classId}&`;
-            if (sortBy) url += `sort_by=${sortBy}&`;
-
-            let res = await fetch(url);
-            let students = await res.json();
-            let html = '';
-            students.forEach(s => {
-                let scoreDisplay = s.score !== null && s.score !== undefined ? `<span class="bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-semibold">${s.score}</span>` : '<span class="text-slate-400">Chưa có</span>';
-                let className = s.class_room ? `${s.class_room.class_code} - ${s.class_room.class_name}` : 'Chưa phân lớp';
-
-                html += `
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-4 font-medium">${s.student_code}</td>
-                        <td class="p-4 font-medium">${s.last_name}</td>
-                        <td class="p-4 font-medium">${s.first_name}</td>
-                        <td class="p-4"><span class="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full text-xs font-semibold">${className}</span></td>
-                        <td class="p-4 text-indigo-600">${s.email || ''}</td>
-                        <td class="p-4">${s.major || ''}</td>
-                        <td class="p-4">${scoreDisplay}</td>
-                        <td class="p-4 flex gap-3">
-                            <button onclick="editStudent(${s.id}, '${s.last_name}', '${s.first_name}', '${s.email || ''}', '${s.phone || ''}', '${s.major || ''}', ${s.score !== null ? s.score : 'null'}, ${s.class_id})" class="text-blue-600 hover:text-blue-800 font-medium">Sửa</button>
-                            <button onclick="deleteItem('students', ${s.id})" class="text-red-500 hover:text-red-700 font-medium">Xóa</button>
-                        </td>
-                    </tr>
-                `;
+            const classId = document.getElementById('filter-class').value;
+            const sortBy = document.getElementById('sort-by').value;
+            const params = new URLSearchParams();
+            if (classId) params.set('class_id', classId);
+            if (sortBy) params.set('sort_by', sortBy);
+            const students = await loadPage('students', params);
+            if (!students) return;
+            renderRows('student-table-body', students, 8, 'Không tìm thấy sinh viên nào', (row, s) => {
+                appendCell(row, s.student_code, 'p-4 font-medium');
+                appendCell(row, s.last_name, 'p-4 font-medium');
+                appendCell(row, s.first_name, 'p-4 font-medium');
+                const className = s.class_room ? `${s.class_room.class_code} - ${s.class_room.class_name}` : 'Chưa phân lớp';
+                appendBadge(row, className, 'bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full text-xs font-semibold');
+                appendCell(row, s.email, 'p-4 text-indigo-600');
+                appendCell(row, s.major);
+                if (s.score !== null && s.score !== undefined) {
+                    appendBadge(row, s.score, 'bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-semibold');
+                } else {
+                    appendBadge(row, 'Chưa có', 'text-slate-400');
+                }
+                appendActions(row, () => editStudent(s.id, s.last_name, s.first_name,
+                    s.email, s.phone, s.major, s.score, s.class_id), 'students', s.id);
             });
-            document.getElementById('student-table-body').innerHTML = html || `<tr><td colspan="8" class="p-4 text-center text-slate-400">Không tìm thấy sinh viên nào</td></tr>`;
         }
 
         async function loadClasses() {
-            let res = await fetch(`${API_BASE}/classes/`);
-            let classes = await res.json();
-            let html = '';
-            classes.forEach(c => {
-                let advisorName = c.advisor ? `${c.advisor.last_name} ${c.advisor.first_name}` : 'Chưa có';
-                let teacherId = c.teacher_id || '';
-                html += `
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-4 font-medium">${c.class_code}</td>
-                        <td class="p-4">${c.class_name}</td>
-                        <td class="p-4">${advisorName}</td>
-                        <td class="p-4 flex gap-3">
-                            <button onclick="editClass(${c.id}, '${c.class_name}', '${teacherId}')" class="text-blue-600 hover:text-blue-800 font-medium">Sửa</button>
-                            <button onclick="deleteItem('classes', ${c.id})" class="text-red-500 hover:text-red-700 font-medium">Xóa</button>
-                        </td>
-                    </tr>
-                `;
+            const classes = await loadPage('classes');
+            if (!classes) return;
+            renderRows('class-table-body', classes, 4, 'Chưa có dữ liệu lớp học', (row, c) => {
+                appendCell(row, c.class_code, 'p-4 font-medium');
+                appendCell(row, c.class_name);
+                appendCell(row, c.advisor ? `${c.advisor.last_name} ${c.advisor.first_name}` : 'Chưa có');
+                appendActions(row, () => editClass(c.id, c.class_name, c.teacher_id), 'classes', c.id);
             });
-            document.getElementById('class-table-body').innerHTML = html || `<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa có dữ liệu lớp học</td></tr>`;
         }
 
         async function loadTeachers() {
-            let res = await fetch(`${API_BASE}/teachers/`);
-            let teachers = await res.json();
-            let html = '';
-            teachers.forEach(t => {
-                html += `
-                    <tr class="hover:bg-slate-50">
-                        <td class="p-4 font-medium">${t.teacher_code}</td>
-                        <td class="p-4">${t.last_name} ${t.first_name}</td>
-                        <td class="p-4"><span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold">${t.degree || 'N/A'}</span></td>
-                        <td class="p-4 text-indigo-600">${t.email || ''}</td>
-                        <td class="p-4">${t.phone || ''}</td>
-                        <td class="p-4 flex gap-3">
-                            <button onclick="editTeacher(${t.id}, '${t.last_name}', '${t.first_name}', '${t.email || ''}', '${t.phone || ''}', '${t.degree || ''}')" class="text-blue-600 hover:text-blue-800 font-medium">Sửa</button>
-                            <button onclick="deleteItem('teachers', ${t.id})" class="text-red-500 hover:text-red-700 font-medium">Xóa</button>
-                        </td>
-                    </tr>
-                `;
+            const teachers = await loadPage('teachers');
+            if (!teachers) return;
+            renderRows('teacher-table-body', teachers, 6, 'Chưa có dữ liệu giảng viên', (row, t) => {
+                appendCell(row, t.teacher_code, 'p-4 font-medium');
+                appendCell(row, `${t.last_name} ${t.first_name}`);
+                appendBadge(row, t.degree || 'N/A', 'bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold');
+                appendCell(row, t.email, 'p-4 text-indigo-600');
+                appendCell(row, t.phone);
+                appendActions(row, () => editTeacher(t.id, t.last_name, t.first_name,
+                    t.email, t.phone, t.degree), 'teachers', t.id);
             });
-            document.getElementById('teacher-table-body').innerHTML = html || `<tr><td colspan="6" class="p-4 text-center text-slate-400">Chưa có dữ liệu giảng viên</td></tr>`;
         }
 
         async function saveStudent(e) {
@@ -456,18 +577,13 @@
             let url = id ? `${API_BASE}/students/${id}` : `${API_BASE}/students/`;
             let method = id ? 'PUT' : 'POST';
 
-            let res = await fetch(url, {
+            let res = await apiRequest(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if(res.ok) {
-                closeModal('student-modal');
-                loadStudents();
-            } else {
-                let err = await res.json();
-                alert("Lỗi: " + JSON.stringify(err.detail));
-            }
+            closeModal('student-modal');
+            await loadStudents();
         }
 
         async function saveClass(e) {
@@ -482,18 +598,13 @@
             let url = id ? `${API_BASE}/classes/${id}` : `${API_BASE}/classes/`;
             let method = id ? 'PUT' : 'POST';
 
-            let res = await fetch(url, {
+            let res = await apiRequest(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if(res.ok) {
-                closeModal('class-modal');
-                loadClasses();
-            } else {
-                let err = await res.json();
-                alert("Lỗi: " + JSON.stringify(err.detail));
-            }
+            closeModal('class-modal');
+            await loadClasses();
         }
 
         async function saveTeacher(e) {
@@ -510,31 +621,39 @@
             let url = id ? `${API_BASE}/teachers/${id}` : `${API_BASE}/teachers/`;
             let method = id ? 'PUT' : 'POST';
 
-            let res = await fetch(url, {
+            let res = await apiRequest(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            if(res.ok) {
-                closeModal('teacher-modal');
-                loadTeachers();
-            } else {
-                let err = await res.json();
-                alert("Lỗi: " + JSON.stringify(err.detail));
-            }
+            closeModal('teacher-modal');
+            await loadTeachers();
         }
 
         async function deleteItem(type, id) {
-            if(confirm("Bạn có chắc chắn muốn xóa bản ghi này không?")) {
-                let res = await fetch(`${API_BASE}/${type}/${id}`, { method: 'DELETE' });
-                if(res.ok) {
-                    if(type === 'students') loadStudents();
-                    else if(type === 'classes') loadClasses();
-                    else if(type === 'teachers') loadTeachers();
-                } else {
-                    alert("Xóa thất bại!");
-                }
-            }
+            if (!confirm('Bạn có chắc chắn muốn xóa bản ghi này không?')) return;
+            await apiRequest(`${API_BASE}/${type}/${id}`, {method: 'DELETE'});
+            await ({students: loadStudents, classes: loadClasses, teachers: loadTeachers})[type]();
+        }
+        // Catch errors at UI entry points; nested dropdown loads still propagate
+        // failures so an edit form never opens with incomplete options.
+        loadStudents = withErrors(loadStudents);
+        loadClasses = withErrors(loadClasses);
+        loadTeachers = withErrors(loadTeachers);
+        loadFilterClassDropdown = withErrors(loadFilterClassDropdown);
+        openStudentModal = withErrors(openStudentModal);
+        openClassModal = withErrors(openClassModal);
+        editStudent = withErrors(editStudent);
+        editClass = withErrors(editClass);
+        saveStudent = withErrors(saveStudent);
+        saveClass = withErrors(saveClass);
+        saveTeacher = withErrors(saveTeacher);
+        deleteItem = withErrors(deleteItem);
+        for (const group of Object.keys(pagination)) {
+            const pager = createTextElement('div', '', 'flex justify-end items-center gap-4 text-sm text-slate-600');
+            pager.id = `pagination-${group}`;
+            document.getElementById(`tab-${group}`).append(pager);
+            renderPagination(group);
         }
 
         // Khởi chạy mặc định khi load trang

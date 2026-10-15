@@ -1,3 +1,4 @@
+from app.crud.transactions import commit_or_conflict
 import random
 import string
 from sqlalchemy.orm import Session
@@ -13,7 +14,7 @@ def generate_unique_teacher_code(db: Session) -> str:
             return code
 
 def get_teachers(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Teacher).offset(skip).limit(limit).all()
+    return db.query(Teacher).order_by(Teacher.id.asc()).offset(skip).limit(limit).all()
 
 def get_teacher(db: Session, teacher_id: int):
     return db.query(Teacher).filter(Teacher.id == teacher_id).first()
@@ -25,7 +26,7 @@ def create_teacher(db: Session, teacher: TeacherCreate):
 
     db_teacher = Teacher(**data)
     db.add(db_teacher)
-    db.commit()
+    commit_or_conflict(db)
     db.refresh(db_teacher)
     return db_teacher
 
@@ -36,7 +37,7 @@ def update_teacher(db: Session, teacher_id: int, teacher: TeacherUpdate):
     update_data = teacher.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_teacher, key, value)
-    db.commit()
+    commit_or_conflict(db)
     db.refresh(db_teacher)
     return db_teacher
 
@@ -45,5 +46,5 @@ def delete_teacher(db: Session, teacher_id: int):
     if not db_teacher:
         return None
     db.delete(db_teacher)
-    db.commit()
+    commit_or_conflict(db)
     return db_teacher

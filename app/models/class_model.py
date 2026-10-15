@@ -11,4 +11,5 @@ class Class(Base):
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True) # Cố vấn học tập (Giảng viên)
 
     advisor = relationship("Teacher", back_populates="classes")
-    students = relationship("Student", back_populates="class_room", cascade="all, delete-orphan")
+    # Students must be transferred or explicitly deleted before deleting a class.
+    students = relationship("Student", back_populates="class_room")

@@ -3,6 +3,7 @@ from fastapi import HTTPException, status
 from typing import List, Optional
 from app.crud import crud_class
 from app.models.teacher import Teacher
+from app.models.student import Student
 from app.schemas.class_schema import ClassCreate, ClassUpdate
 from app.core.logger import get_logger
 
@@ -63,6 +64,12 @@ class ClassService:
     @staticmethod
     def delete_existing_class(db: Session, class_id: int):
         logger.info(f"Yêu cầu xóa lớp học ID: {class_id}")
+        ClassService.get_class_by_id(db, class_id)
+        if db.query(Student.id).filter(Student.class_id == class_id).first() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Không thể xóa lớp đang có sinh viên. Vui lòng chuyển lớp hoặc xóa sinh viên trước."
+            )
         deleted = crud_class.delete_class(db=db, class_id=class_id)
         if not deleted:
             raise HTTPException(

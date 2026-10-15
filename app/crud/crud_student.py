@@ -1,3 +1,4 @@
+from app.crud.transactions import commit_or_conflict
 import random
 import string
 from datetime import datetime
@@ -30,7 +31,7 @@ def get_students(db: Session, class_id: Optional[int] = None, sort_by: Optional[
     elif sort_by == "last_name":
         query = query.order_by(Student.last_name.asc())
         
-    return query.offset(skip).limit(limit).all()
+    return query.order_by(Student.id.asc()).offset(skip).limit(limit).all()
 
 def get_student(db: Session, student_id: int):
     return db.query(Student).options(joinedload(Student.class_room)).filter(Student.id == student_id).first()
@@ -42,7 +43,7 @@ def create_student(db: Session, student: StudentCreate):
     
     db_student = Student(**data)
     db.add(db_student)
-    db.commit()
+    commit_or_conflict(db)
     db.refresh(db_student)
     return get_student(db, db_student.id)
 
@@ -53,7 +54,7 @@ def update_student(db: Session, student_id: int, student: StudentUpdate):
     update_data = student.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_student, key, value)
-    db.commit()
+    commit_or_conflict(db)
     db.refresh(db_student)
     return get_student(db, student_id)
 
@@ -62,5 +63,5 @@ def delete_student(db: Session, student_id: int):
     if not db_student:
         return None
     db.delete(db_student)
-    db.commit()
+    commit_or_conflict(db)
     return db_student

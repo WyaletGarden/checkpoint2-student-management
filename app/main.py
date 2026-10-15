@@ -5,13 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api.v1.router import api_router
-from app.core.database import Base, engine
-import app.models  # Import tất cả các model để SQLAlchemy nhận diện và tạo bảng
+import app.models  # Register ORM relationships; schema is managed by Alembic.
 
 from app.routers import demo_n1
-
-# Khởi tạo bảng CSDL
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.PROJECT_NAME)
 app.include_router(demo_n1.router)
@@ -23,6 +19,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Total-Count"],
 )
 
 # --- GLOBAL EXCEPTION HANDLER ---

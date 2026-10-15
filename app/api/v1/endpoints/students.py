@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, status
+from app.models.student import Student
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 from typing import List, Optional, Literal
 
@@ -10,12 +11,17 @@ router = APIRouter(prefix="/students", tags=["Students"])
 
 @router.get("/", response_model=List[StudentResponse])
 def get_students(
+    response: Response,
     class_id: Optional[int] = None,
     sort_by: Optional[Literal["score_asc", "score_desc", "first_name", "last_name"]] = None,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
+    count_query = db.query(Student)
+    if class_id is not None:
+        count_query = count_query.filter(Student.class_id == class_id)
+    response.headers['X-Total-Count'] = str(count_query.count())
     return StudentService.get_all_students(db, class_id=class_id, sort_by=sort_by, skip=skip, limit=limit)
 
 @router.get("/{id}", response_model=StudentResponse)

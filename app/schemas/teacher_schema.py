@@ -1,7 +1,8 @@
+from app.schemas.input_base import InputModel
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
-class TeacherCreate(BaseModel):
+class TeacherCreate(InputModel):
     teacher_code: Optional[str] = None
     last_name: str
     first_name: str
@@ -9,7 +10,8 @@ class TeacherCreate(BaseModel):
     phone: Optional[str] = None
     degree: Optional[str] = None
 
-class TeacherUpdate(BaseModel):
+class TeacherUpdate(InputModel):
+    non_nullable_fields = frozenset({'teacher_code', 'last_name', 'first_name'})
     teacher_code: Optional[str] = None
     last_name: Optional[str] = None
     first_name: Optional[str] = None

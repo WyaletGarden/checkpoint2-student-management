@@ -55,3 +55,20 @@ def test_delete_class(client, sample_class):
     assert response.status_code == 204
     follow_up = client.get(f"/api/v1/classes/{sample_class.id}")
     assert follow_up.status_code == 404
+
+
+def test_delete_class_with_students_is_rejected(client, sample_student):
+    class_id = sample_student.class_id
+    student_id = sample_student.id
+
+    response = client.delete(f"/api/v1/classes/{class_id}")
+
+    assert response.status_code == 409
+    assert client.get(f"/api/v1/classes/{class_id}").status_code == 200
+    student_response = client.get(f"/api/v1/students/{student_id}")
+    assert student_response.status_code == 200
+    assert student_response.json()["class_id"] == class_id
+
+
+def test_delete_class_not_found(client):
+    assert client.delete("/api/v1/classes/999").status_code == 404

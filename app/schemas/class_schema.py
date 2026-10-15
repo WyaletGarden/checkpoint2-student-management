@@ -1,18 +1,20 @@
-from pydantic import BaseModel
+from app.schemas.input_base import InputModel
+from pydantic import BaseModel, Field
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.schemas.teacher_schema import TeacherResponse
 
-class ClassCreate(BaseModel):
+class ClassCreate(InputModel):
     class_code: Optional[str] = None
     class_name: str
-    teacher_id: Optional[int] = None
+    teacher_id: Optional[int] = Field(None, gt=0)
 
-class ClassUpdate(BaseModel):
+class ClassUpdate(InputModel):
+    non_nullable_fields = frozenset({'class_code', 'class_name'})
     class_code: Optional[str] = None
     class_name: Optional[str] = None
-    teacher_id: Optional[int] = None
+    teacher_id: Optional[int] = Field(None, gt=0)
 
 class ClassResponse(BaseModel):
     id: int

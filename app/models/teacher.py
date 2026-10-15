@@ -13,4 +13,5 @@ class Teacher(Base):
     phone = Column(String, nullable=True)
     degree = Column(String, nullable=True)
 
-    classes = relationship("Class", back_populates="advisor", cascade="all, delete-orphan")
+    # Deleting an advisor clears teacher_id; classes remain intact.
+    classes = relationship("Class", back_populates="advisor")

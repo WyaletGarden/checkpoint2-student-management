@@ -47,3 +47,26 @@ def test_delete_teacher(client, sample_teacher):
     assert response.status_code == 204
     follow_up = client.get(f"/api/v1/teachers/{sample_teacher.id}")
     assert follow_up.status_code == 404
+
+
+def test_delete_teacher_preserves_classes_and_students(
+    client, db, sample_teacher, sample_student
+):
+    class_room = sample_student.class_room
+    class_room.advisor = sample_teacher
+    db.commit()
+    teacher_id = sample_teacher.id
+    class_id = class_room.id
+    student_id = sample_student.id
+
+    response = client.delete(f"/api/v1/teachers/{teacher_id}")
+
+    assert response.status_code == 204
+    assert client.get(f"/api/v1/teachers/{teacher_id}").status_code == 404
+    class_response = client.get(f"/api/v1/classes/{class_id}")
+    assert class_response.status_code == 200
+    assert class_response.json()["teacher_id"] is None
+    assert class_response.json()["advisor"] is None
+    student_response = client.get(f"/api/v1/students/{student_id}")
+    assert student_response.status_code == 200
+    assert student_response.json()["class_id"] == class_id

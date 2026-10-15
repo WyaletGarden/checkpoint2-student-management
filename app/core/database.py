@@ -1,14 +1,9 @@
-import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
+from sqlalchemy.orm import declarative_base, sessionmaker
+from app.core.config import settings
 
-# Load các biến từ file .env
-load_dotenv()
-
-# Lấy DATABASE_URL từ .env
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+# Use the same settings as Alembic (including .env and environment overrides).
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
 # Khởi tạo engine với echo=True để in toàn bộ câu lệnh SQL ra terminal
 engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
