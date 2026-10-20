@@ -1,4 +1,5 @@
 from app.crud.transactions import commit_or_conflict
+from app.crud.search import search_query
 import random
 import string
 from sqlalchemy.orm import Session, joinedload
@@ -12,8 +13,8 @@ def generate_unique_class_code(db: Session) -> str:
         if not exists:
             return code
 
-def get_classes(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Class).options(joinedload(Class.advisor)).order_by(Class.id.asc()).offset(skip).limit(limit).all()
+def get_classes(db: Session, skip: int = 0, limit: int = 100, q: str | None = None):
+    return search_query(db.query(Class).options(joinedload(Class.advisor)), Class, q).order_by(Class.id.asc()).offset(skip).limit(limit).all()
 
 def get_class(db: Session, class_id: int):
     return db.query(Class).options(joinedload(Class.advisor)).filter(Class.id == class_id).first()

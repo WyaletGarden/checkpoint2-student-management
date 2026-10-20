@@ -10,9 +10,9 @@ logger = get_logger(__name__)
 class TeacherService:
 
     @staticmethod
-    def get_all_teachers(db: Session, skip: int = 0, limit: int = 100):
+    def get_all_teachers(db: Session, skip: int = 0, limit: int = 100, q: str | None = None):
         logger.info("Yêu cầu lấy danh sách giảng viên")
-        return crud_teacher.get_teachers(db, skip=skip, limit=limit)
+        return crud_teacher.get_teachers(db, skip=skip, limit=limit, q=q)
 
     @staticmethod
     def get_teacher_by_id(db: Session, teacher_id: int):

@@ -1,4 +1,5 @@
 from app.crud.transactions import commit_or_conflict
+from app.crud.search import search_query
 import random
 import string
 from sqlalchemy.orm import Session
@@ -13,8 +14,8 @@ def generate_unique_teacher_code(db: Session) -> str:
         if not exists:
             return code
 
-def get_teachers(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Teacher).order_by(Teacher.id.asc()).offset(skip).limit(limit).all()
+def get_teachers(db: Session, skip: int = 0, limit: int = 100, q: str | None = None):
+    return search_query(db.query(Teacher), Teacher, q).order_by(Teacher.id.asc()).offset(skip).limit(limit).all()
 
 def get_teacher(db: Session, teacher_id: int):
     return db.query(Teacher).filter(Teacher.id == teacher_id).first()

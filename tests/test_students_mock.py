@@ -8,7 +8,7 @@ client = TestClient(app)
 
 # Sử dụng @patch để giả lập (mock) toàn bộ hàm create_new_student trong StudentService
 @patch("app.services.student_service.StudentService.create_new_student")
-def test_create_student_with_mock_db(mock_create_service):
+def test_create_student_with_mock_db(mock_create_service, client):
     """
     Test case dùng unittest.mock để cô lập hoàn toàn khỏi Database.
     Hàm create_new_student sẽ không chạy thật mà trả về kết quả giả lập (mock).

@@ -5,11 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.api.v1.endpoints.auth import router as auth_router
 import app.models  # Register ORM relationships; schema is managed by Alembic.
 
 from app.routers import demo_n1
 
 app = FastAPI(title=settings.PROJECT_NAME)
+app.include_router(auth_router)
 app.include_router(demo_n1.router)
 
 # Cấu hình CORS

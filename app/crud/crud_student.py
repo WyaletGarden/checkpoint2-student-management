@@ -1,4 +1,5 @@
 from app.crud.transactions import commit_or_conflict
+from app.crud.search import search_query
 import random
 import string
 from datetime import datetime
@@ -16,8 +17,8 @@ def generate_unique_student_code(db: Session) -> str:
         if not exists:
             return code
 
-def get_students(db: Session, class_id: Optional[int] = None, sort_by: Optional[str] = None, skip: int = 0, limit: int = 100):
-    query = db.query(Student).options(joinedload(Student.class_room))
+def get_students(db: Session, class_id: Optional[int] = None, sort_by: Optional[str] = None, skip: int = 0, limit: int = 100, q: str | None = None):
+    query = search_query(db.query(Student).options(joinedload(Student.class_room)), Student, q)
     
     if class_id is not None:
         query = query.filter(Student.class_id == class_id)

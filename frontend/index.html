@@ -3,662 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống Quản lý Đào tạo</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="theme-color" content="#14233f">
+    <title>Student Admin · Quản lý đào tạo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
 </head>
-<body class="bg-gray-100 font-sans antialiased">
-
-    <div class="flex h-screen overflow-hidden">
-        
-        <!-- SIDEBAR -->
-        <div class="w-64 bg-slate-900 text-white flex flex-col justify-between">
-            <div>
-                <div class="p-5 text-2xl font-bold tracking-wider border-b border-slate-800 text-center text-indigo-400">
-                    🎓 Student Admin
-                </div>
-                <nav class="mt-6 px-4 space-y-2">
-                    <button onclick="switchTab('students')" id="btn-students" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition bg-indigo-600 text-white shadow-lg">
-                        📂 Quản lý Sinh viên
-                    </button>
-                    <button onclick="switchTab('classes')" id="btn-classes" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition hover:bg-slate-800 text-slate-300">
-                        🏫 Quản lý Lớp học
-                    </button>
-                    <button onclick="switchTab('teachers')" id="btn-teachers" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition hover:bg-slate-800 text-slate-300">
-                        👨‍🏫 Quản lý Giảng viên
-                    </button>
-                </nav>
-            </div>
-            <div class="p-4 text-xs text-slate-500 text-center border-t border-slate-800">
-                FastAPI & PostgreSQL Backend
-            </div>
-        </div>
-
-        <!-- MAIN CONTENT -->
-        <div class="flex-1 flex flex-col overflow-hidden">
-            
-            <header class="bg-white shadow-sm h-16 flex items-center justify-between px-8 z-10">
-                <h1 id="page-title" class="text-xl font-bold text-slate-800">Quản lý Sinh viên</h1>
-                <div class="text-sm font-medium text-slate-600">Xin chào, Quản trị viên</div>
-            </header>
-
-            <main class="flex-1 overflow-y-auto p-8">
-                
-                <!-- === TAB 1: SINH VIÊN === -->
-                <section id="tab-students" class="space-y-6">
-                    <div class="flex justify-between items-center">
-                        <div class="flex gap-4 items-center">
-                            <h2 class="text-lg font-semibold text-slate-700">Danh sách Sinh viên</h2>
-                            <!-- Bộ lọc Lớp -->
-                            <select id="filter-class" onchange="resetStudentPage()" class="border rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500">
-                                <option value="">-- Tất cả các lớp --</option>
-                            </select>
-                            <!-- Bộ lọc Sắp xếp -->
-                            <select id="sort-by" onchange="resetStudentPage()" class="border rounded-lg px-3 py-1.5 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500">
-                                <option value="">-- Sắp xếp mặc định --</option>
-                                <option value="first_name">Sắp xếp theo Tên (A-Z)</option>
-                                <option value="score_desc">Điểm TB: Cao đến Thấp</option>
-                                <option value="score_asc">Điểm TB: Thấp đến Cao</option>
-                            </select>
-                        </div>
-                        <button onclick="openStudentModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow transition">+ Thêm Sinh viên</button>
-                    </div>
-                    <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200">
-                                <tr>
-                                    <th class="p-4">Mã SV</th>
-                                    <th class="p-4">Họ</th>
-                                    <th class="p-4">Tên</th>
-                                    <th class="p-4">Lớp quản lý</th>
-                                    <th class="p-4">Email trường</th>
-                                    <th class="p-4">Chuyên ngành</th>
-                                    <th class="p-4">Điểm TB</th>
-                                    <th class="p-4">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="student-table-body" class="divide-y divide-slate-200 text-sm text-slate-700"></tbody>
-                        </table>
-                    </div>
+<body>
+    <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+        <symbol id="i-cap" viewBox="0 0 24 24"><path d="m2 9 10-5 10 5-10 5L2 9Z M6 11v6c4 3 8 3 12 0v-6 M22 9v7"/></symbol>
+        <symbol id="i-students" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3 M16 5a3 3 0 0 1 0 6 M18 15a5 5 0 0 1 3 5"/></symbol>
+        <symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V7l8-4 8 4v14 M2 21h20 M9 21v-5h6v5 M8 9h1m6 0h1M8 12h1m6 0h1"/></symbol>
+        <symbol id="i-teacher" viewBox="0 0 24 24"><circle cx="8" cy="7" r="3"/><path d="M2 21v-4a6 6 0 0 1 12 0v4 M14 3h8v13h-5 M17 7h2m-2 4h2"/></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+        <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+        <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H4v16h6m4-12 4 4-4 4m-6-4h14"/></symbol>
+        <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+        <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24"><path d="m16 3 5 5L9 20l-6 1 1-6L16 3Z M13 6l5 5"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol>
+    </defs></svg>
+    <section id="auth-screen" class="auth-layout" aria-labelledby="auth-title">
+        <aside class="auth-story">
+            <a class="brand brand-light" href="/" aria-label="Student Admin"><span class="brand-mark"><svg class="icon"><use href="#i-cap"/></svg></span><span>Student<span class="brand-accent">Admin</span><small>CỔNG QUẢN LÝ ĐÀO TẠO</small></span></a>
+            <div class="story-copy"><span class="eyebrow">KẾT NỐI · QUẢN LÝ · PHÁT TRIỂN</span><h2>Mỗi hành trình học tập.<br><em>Một nơi để quản lý.</em></h2><p>Kết nối sinh viên, lớp học và giảng viên trong một không gian làm việc ngăn nắp, rõ ràng.</p></div>
+            <div class="campus-art" aria-hidden="true"><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span>
+                <svg viewBox="0 0 520 260" fill="none"><path d="m50 225 210-80 210 80-210 30-210-30Z" fill="#243c60"/><path d="M102 117h316v106H102z" fill="#dee5f4"/><path d="M82 118 260 33l178 85H82Z" fill="#7f91c9"/><path d="m116 109 144-65 144 65H116Z" fill="#abb8df"/><path d="M222 100h76v123h-76z" fill="#f1f4fb"/><path d="M247 171h26v52h-26z" fill="#283c60"/><path d="M126 138h28v39h-28zm57 0h21v39h-21zm133 0h21v39h-21zm49 0h28v39h-28z" fill="#7d95bf"/><path d="M90 222h340v11H90zm-13 12h366v9H77z" fill="#a8b8d1"/><circle cx="260" cy="128" r="15" fill="#c5d0e9"/><path d="M260 119v10l7 4" stroke="#42567e" stroke-width="3" stroke-linecap="round"/><path d="M260 32V10m0 0 36 6-36 7" stroke="#b7c4ef" stroke-width="3"/></svg>
+                <div class="art-label"><span class="status-dot"></span> Một nền tảng. Mọi kết nối.</div>
+            </div><p class="story-footer">Đơn giản hóa công việc. Tập trung vào giáo dục.</p>
+        </aside>
+        <div class="auth-main"><div class="auth-card">
+            <span class="eyebrow">CHÀO MỪNG ĐẾN STUDENT ADMIN</span><h1 id="auth-title">Đăng nhập</h1><p id="auth-description" class="muted">Tiếp tục công việc quản lý đào tạo của bạn.</p>
+            <p id="auth-message" class="auth-notice" role="status" aria-live="polite" hidden></p>
+            <form id="auth-form" novalidate>
+                <div class="field"><label for="auth-username">Tên đăng nhập</label><input id="auth-username" name="username" required minlength="1" maxlength="64" pattern="[a-zA-Z0-9_.\-]+" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Nhập tên đăng nhập" aria-describedby="username-help"><small id="username-help">Chữ không dấu, số và các dấu . _ - (tối đa 64 ký tự).</small></div>
+                <div class="field"><label for="auth-password">Mật khẩu</label><div class="password-input"><input id="auth-password" name="password" type="password" required minlength="8" maxlength="72" autocomplete="current-password" placeholder="Nhập mật khẩu" aria-describedby="password-help"><button id="toggle-password" type="button" class="icon-button" aria-label="Hiện mật khẩu" aria-pressed="false"><svg class="icon"><use href="#i-eye"/></svg></button></div><small id="password-help">Ít nhất 8 ký tự, tối đa 72 byte UTF-8.</small></div>
+                <div id="auth-confirm-group" class="field" hidden><label for="auth-confirm">Xác nhận mật khẩu</label><input id="auth-confirm" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu" disabled></div>
+                <button id="auth-submit" type="submit" class="button button-primary auth-submit">Đăng nhập</button>
+            </form>
+            <div class="auth-switch"><span id="auth-switch-caption">Bạn chưa có tài khoản?</span><button id="auth-login-tab" type="button" class="text-button" aria-pressed="true" hidden>Đăng nhập</button><button id="auth-register-tab" type="button" class="text-button" aria-pressed="false">Tạo tài khoản</button></div><p class="auth-footnote">Không gian làm việc dành cho quản lý đào tạo.</p>
+        </div></div>
+    </section>
+    <div id="management-app" class="app-shell" hidden>
+        <button id="sidebar-backdrop" class="sidebar-backdrop" type="button" aria-label="Đóng điều hướng" hidden></button>
+        <aside id="sidebar" class="sidebar">
+            <a class="brand brand-light" href="/"><span class="brand-mark"><svg class="icon"><use href="#i-cap"/></svg></span><span>Student<span class="brand-accent">Admin</span><small>QUẢN LÝ ĐÀO TẠO</small></span></a>
+            <p class="nav-label">KHÔNG GIAN LÀM VIỆC</p><nav aria-label="Điều hướng chính">
+                <button onclick="switchTab('students')" id="btn-students" class="nav-item is-active" aria-current="page"><svg class="icon"><use href="#i-students"/></svg><span>Sinh viên</span></button>
+                <button onclick="switchTab('classes')" id="btn-classes" class="nav-item"><svg class="icon"><use href="#i-building"/></svg><span>Lớp học</span></button>
+                <button onclick="switchTab('teachers')" id="btn-teachers" class="nav-item"><svg class="icon"><use href="#i-teacher"/></svg><span>Giảng viên</span></button>
+            </nav><div class="sidebar-note"><svg class="icon"><use href="#i-cap"/></svg><strong>Cùng xây dựng tương lai</strong><p>Thông tin được tổ chức tốt.<br>Mọi kết nối trở nên dễ dàng.</p></div><div class="sidebar-footer"><span class="status-dot"></span> Cổng quản lý đào tạo</div>
+        </aside>
+        <div class="workspace"><header class="topbar"><div class="breadcrumb"><button id="menu-button" class="icon-button mobile-menu" aria-label="Mở điều hướng" aria-expanded="false" aria-controls="sidebar"><svg class="icon"><use href="#i-menu"/></svg></button><span>Không gian làm việc</span><span class="breadcrumb-slash">/</span><strong id="page-title">Sinh viên</strong></div><div class="account"><span class="avatar" aria-hidden="true">U</span><span id="current-user"></span><button id="logout-button" type="button" class="icon-button" aria-label="Đăng xuất" title="Đăng xuất"><svg class="icon"><use href="#i-logout"/></svg></button></div></header>
+            <main id="workspace-main" tabindex="-1">
+                <section id="tab-students" class="resource-page" aria-labelledby="students-heading">
+                    <div class="page-heading"><div><span class="eyebrow">QUẢN LÝ ĐÀO TẠO</span><h1 id="students-heading">Sinh viên</h1><p>Theo dõi hồ sơ và hành trình học tập của sinh viên.</p></div><button onclick="openStudentModal()" class="button button-primary"><svg class="icon"><use href="#i-plus"/></svg>Thêm sinh viên</button></div>
+                    <div class="data-panel"><div class="panel-heading"><h2>Danh sách sinh viên <span id="count-students" class="count-badge">0</span></h2><span class="panel-caption">HỒ SƠ SINH VIÊN</span></div><div class="toolbar"><label class="search-field"><svg class="icon"><use href="#i-search"/></svg><input id="search-students" type="search" aria-label="Tìm sinh viên" placeholder="Tìm theo tên, mã hoặc email…" maxlength="100"></label><select id="filter-class" aria-label="Lọc theo lớp" onchange="resetStudentPage()"><option value="">Tất cả lớp học</option></select><select id="sort-by" aria-label="Sắp xếp sinh viên" onchange="resetStudentPage()"><option value="">Sắp xếp mặc định</option><option value="first_name">Tên A → Z</option><option value="score_desc">Điểm cao → thấp</option><option value="score_asc">Điểm thấp → cao</option></select></div><div class="table-scroll"><table><caption class="sr-only">Danh sách sinh viên</caption><thead><tr><th>Mã sinh viên</th><th>Họ</th><th>Tên</th><th>Lớp học</th><th>Email</th><th>Chuyên ngành</th><th>Điểm TB</th><th>Thao tác</th></tr></thead><tbody id="student-table-body"></tbody></table></div><div id="pagination-students" class="pagination"></div></div>
                 </section>
-
-                <!-- === TAB 2: LỚP HỌC === -->
-                <section id="tab-classes" class="space-y-6 hidden">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-lg font-semibold text-slate-700">Danh sách Lớp học</h2>
-                        <button onclick="openClassModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow transition">+ Thêm Lớp học</button>
-                    </div>
-                    <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200">
-                                <tr>
-                                    <th class="p-4">Mã lớp</th>
-                                    <th class="p-4">Tên lớp</th>
-                                    <th class="p-4">Cố vấn học tập</th>
-                                    <th class="p-4">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="class-table-body" class="divide-y divide-slate-200 text-sm text-slate-700"></tbody>
-                        </table>
-                    </div>
+                <section id="tab-classes" class="resource-page hidden" aria-labelledby="classes-heading">
+                    <div class="page-heading"><div><span class="eyebrow">QUẢN LÝ ĐÀO TẠO</span><h1 id="classes-heading">Lớp học</h1><p>Tổ chức lớp học và kết nối với cố vấn học tập.</p></div><button onclick="openClassModal()" class="button button-primary"><svg class="icon"><use href="#i-plus"/></svg>Thêm lớp học</button></div>
+                    <div class="data-panel"><div class="panel-heading"><h2>Danh sách lớp học <span id="count-classes" class="count-badge">0</span></h2><span class="panel-caption">TỔ CHỨC ĐÀO TẠO</span></div><div class="toolbar"><label class="search-field"><svg class="icon"><use href="#i-search"/></svg><input id="search-classes" type="search" aria-label="Tìm lớp học" placeholder="Tìm theo tên hoặc mã lớp…" maxlength="100"></label></div><div class="table-scroll"><table><caption class="sr-only">Danh sách lớp học</caption><thead><tr><th>Mã lớp</th><th>Tên lớp học</th><th>Cố vấn học tập</th><th>Thao tác</th></tr></thead><tbody id="class-table-body"></tbody></table></div><div id="pagination-classes" class="pagination"></div></div>
                 </section>
-
-                <!-- === TAB 3: GIẢNG VIÊN === -->
-                <section id="tab-teachers" class="space-y-6 hidden">
-                    <div class="flex justify-between items-center">
-                        <h2 class="text-lg font-semibold text-slate-700">Danh sách Giảng viên</h2>
-                        <button onclick="openTeacherModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow transition">+ Thêm Giảng viên</button>
-                    </div>
-                    <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-50 text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200">
-                                <tr>
-                                    <th class="p-4">Mã GV</th>
-                                    <th class="p-4">Họ và tên</th>
-                                    <th class="p-4">Học vị</th>
-                                    <th class="p-4">Email</th>
-                                    <th class="p-4">Số điện thoại</th>
-                                    <th class="p-4">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="teacher-table-body" class="divide-y divide-slate-200 text-sm text-slate-700"></tbody>
-                        </table>
-                    </div>
-                </section>
-
+                <section id="tab-teachers" class="resource-page hidden" aria-labelledby="teachers-heading">
+                    <div class="page-heading"><div><span class="eyebrow">QUẢN LÝ ĐÀO TẠO</span><h1 id="teachers-heading">Giảng viên</h1><p>Quản lý thông tin và liên hệ của đội ngũ giảng viên.</p></div><button onclick="openTeacherModal()" class="button button-primary"><svg class="icon"><use href="#i-plus"/></svg>Thêm giảng viên</button></div>
+                    <div class="data-panel"><div class="panel-heading"><h2>Danh sách giảng viên <span id="count-teachers" class="count-badge">0</span></h2><span class="panel-caption">ĐỘI NGŨ GIẢNG DẠY</span></div><div class="toolbar"><label class="search-field"><svg class="icon"><use href="#i-search"/></svg><input id="search-teachers" type="search" aria-label="Tìm giảng viên" placeholder="Tìm theo tên, mã hoặc email…" maxlength="100"></label></div><div class="table-scroll"><table><caption class="sr-only">Danh sách giảng viên</caption><thead><tr><th>Mã giảng viên</th><th>Họ và tên</th><th>Học vị</th><th>Email</th><th>Số điện thoại</th><th>Thao tác</th></tr></thead><tbody id="teacher-table-body"></tbody></table></div><div id="pagination-teachers" class="pagination"></div></div>
+                </section><footer class="workspace-footer">Student Admin <span>Thông tin rõ ràng. Quản lý hiệu quả.</span></footer>
             </main>
         </div>
     </div>
-
-    <!-- ================= MODAL SINH VIÊN ================= -->
-    <div id="student-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
-        <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl space-y-4">
-            <h3 id="student-modal-title" class="text-lg font-bold text-slate-800">Thêm Sinh viên mới</h3>
-            <form id="student-form" onsubmit="saveStudent(event)" class="space-y-3">
-                <input type="hidden" id="s_id">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Họ</label>
-                        <input type="text" id="s_lastname" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Tên</label>
-                        <input type="text" id="s_firstname" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Email trường</label>
-                        <input type="email" id="s_email" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Số điện thoại</label>
-                        <input type="text" id="s_phone" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Chuyên ngành</label>
-                        <input type="text" id="s_major" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Điểm TB (0-10)</label>
-                        <input type="number" step="0.1" min="0" max="10" id="s_score" placeholder="8.5" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Thuộc lớp quản lý</label>
-                    <select id="s_class_id" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></select>
-                </div>
-                <div class="flex justify-end gap-3 pt-3">
-                    <button type="button" onclick="closeModal('student-modal')" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 hover:bg-gray-300">Hủy</button>
-                    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700">Lưu</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ================= MODAL LỚP HỌC ================= -->
-    <div id="class-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
-        <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4">
-            <h3 id="class-modal-title" class="text-lg font-bold text-slate-800">Thêm Lớp học mới</h3>
-            <form id="class-form" onsubmit="saveClass(event)" class="space-y-3">
-                <input type="hidden" id="c_id">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tên lớp</label>
-                    <input type="text" id="c_name" required placeholder="Ví dụ: Công nghệ thông tin Việt - Nhật" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Cố vấn học tập (Giảng viên)</label>
-                    <select id="c_teacher_id" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></select>
-                </div>
-                <div class="flex justify-end gap-3 pt-3">
-                    <button type="button" onclick="closeModal('class-modal')" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 hover:bg-gray-300">Hủy</button>
-                    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700">Lưu</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ================= MODAL GIẢNG VIÊN ================= -->
-    <div id="teacher-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
-        <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl space-y-4">
-            <h3 id="teacher-modal-title" class="text-lg font-bold text-slate-800">Thêm Giảng viên mới</h3>
-            <form id="teacher-form" onsubmit="saveTeacher(event)" class="space-y-3">
-                <input type="hidden" id="t_id">
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Họ</label>
-                        <input type="text" id="t_lastname" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Tên</label>
-                        <input type="text" id="t_firstname" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
-                        <input type="email" id="t_email" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Số điện thoại</label>
-                        <input type="text" id="t_phone" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Học vị</label>
-                    <input type="text" id="t_degree" placeholder="Thạc sĩ, Tiến sĩ,..." class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                </div>
-                <div class="flex justify-end gap-3 pt-3">
-                    <button type="button" onclick="closeModal('teacher-modal')" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 hover:bg-gray-300">Hủy</button>
-                    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700">Lưu</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ================= JAVASCRIPT ================= -->
-    <script>
-        const API_BASE = "/api/v1";
-
-        const PAGE_SIZE = 20;
-        const pagination = Object.fromEntries(['students', 'classes', 'teachers'].map(
-            group => [group, {skip: 0, renderedSkip: 0, total: 0, request: 0, busy: false}]
-        ));
-
-        async function apiRequest(url, options) {
-            let response;
-            try {
-                response = await fetch(url, options);
-            } catch {
-                throw new Error('Không thể kết nối máy chủ. Vui lòng thử lại.');
-            }
-            if (!response.ok) {
-                let message = `Yêu cầu thất bại (HTTP ${response.status})`;
-                try {
-                    const error = await response.json();
-                    if (typeof error.detail === 'string') message = error.detail;
-                    else if (Array.isArray(error.detail)) message = error.detail.map(item => item.msg).join('; ');
-                } catch { /* Preserve fallback for non-JSON error responses. */ }
-                throw new Error(message);
-            }
-            return response;
-        }
-
-        function withErrors(action) {
-            return async (...args) => {
-                try { return await action(...args); }
-                catch (error) { alert(error.message || 'Đã xảy ra lỗi. Vui lòng thử lại.'); }
-            };
-        }
-
-        async function loadAll(group) {
-            const records = [];
-            let total;
-            do {
-                const response = await apiRequest(`${API_BASE}/${group}/?skip=${records.length}&limit=100`);
-                const page = await response.json();
-                total = Number(response.headers.get('X-Total-Count'));
-                records.push(...page);
-                if (page.length === 0) break;
-            } while (records.length < total);
-            return records;
-        }
-
-        function renderPagination(group) {
-            const state = pagination[group];
-            const container = document.getElementById(`pagination-${group}`);
-            const previous = createTextElement('button', 'Trước', 'border rounded px-3 py-1 disabled:opacity-40');
-            const next = createTextElement('button', 'Sau', 'border rounded px-3 py-1 disabled:opacity-40');
-            previous.type = next.type = 'button';
-            previous.disabled = state.busy || state.skip === 0;
-            next.disabled = state.busy || state.skip + PAGE_SIZE >= state.total;
-            const move = offset => {
-                state.skip += offset;
-                return ({students: loadStudents, classes: loadClasses, teachers: loadTeachers})[group]();
-            };
-            previous.addEventListener('click', () => move(-PAGE_SIZE));
-            next.addEventListener('click', () => move(PAGE_SIZE));
-            const label = createTextElement('span', `Trang ${Math.floor(state.skip / PAGE_SIZE) + 1}/${Math.max(1, Math.ceil(state.total / PAGE_SIZE))} · ${state.total} bản ghi`);
-            container.replaceChildren(previous, label, next);
-        }
-
-        async function loadPage(group, params = new URLSearchParams()) {
-            const state = pagination[group];
-            const request = ++state.request;
-            state.busy = true;
-            renderPagination(group);
-            try {
-                params.set('skip', state.skip);
-                params.set('limit', PAGE_SIZE);
-                const response = await apiRequest(`${API_BASE}/${group}/?${params}`);
-                const records = await response.json();
-                if (request !== state.request) return null;
-                state.total = Number(response.headers.get('X-Total-Count'));
-                if (state.skip > 0 && state.skip >= state.total) {
-                    state.skip = Math.max(0, Math.ceil(state.total / PAGE_SIZE) - 1) * PAGE_SIZE;
-                    return await loadPage(group, params);
-                }
-                state.renderedSkip = state.skip;
-                return records;
-            } catch (error) {
-                if (request !== state.request) return null;
-                state.skip = state.renderedSkip;
-                throw error;
-            } finally {
-                if (request === state.request) {
-                    state.busy = false;
-                    renderPagination(group);
-                }
-            }
-        }
-
-        function resetStudentPage() {
-            pagination.students.skip = 0;
-            loadStudents();
-        }
-
-        function switchTab(tab) {
-            document.getElementById('tab-students').classList.add('hidden');
-            document.getElementById('tab-classes').classList.add('hidden');
-            document.getElementById('tab-teachers').classList.add('hidden');
-
-            document.getElementById('btn-students').className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition hover:bg-slate-800 text-slate-300";
-            document.getElementById('btn-classes').className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition hover:bg-slate-800 text-slate-300";
-            document.getElementById('btn-teachers').className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition hover:bg-slate-800 text-slate-300";
-
-            if(tab === 'students') {
-                document.getElementById('tab-students').classList.remove('hidden');
-                document.getElementById('page-title').innerText = "Quản lý Sinh viên";
-                document.getElementById('btn-students').className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition bg-indigo-600 text-white shadow-lg";
-                loadFilterClassDropdown();
-                loadStudents();
-            } else if(tab === 'classes') {
-                document.getElementById('tab-classes').classList.remove('hidden');
-                document.getElementById('page-title').innerText = "Quản lý Lớp học";
-                document.getElementById('btn-classes').className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition bg-indigo-600 text-white shadow-lg";
-                loadClasses();
-            } else if(tab === 'teachers') {
-                document.getElementById('tab-teachers').classList.remove('hidden');
-                document.getElementById('page-title').innerText = "Quản lý Giảng viên";
-                document.getElementById('btn-teachers').className = "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium transition bg-indigo-600 text-white shadow-lg";
-                loadTeachers();
-            }
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.add('hidden');
-        }
-
-        async function openStudentModal() {
-            document.getElementById('student-modal-title').innerText = "Thêm Sinh viên mới";
-            document.getElementById('student-form').reset();
-            document.getElementById('s_id').value = "";
-            await loadClassDropdown();
-            document.getElementById('student-modal').classList.remove('hidden');
-        }
-
-        async function openClassModal() {
-            document.getElementById('class-modal-title').innerText = "Thêm Lớp học mới";
-            document.getElementById('class-form').reset();
-            document.getElementById('c_id').value = "";
-            await loadTeacherDropdown();
-            document.getElementById('class-modal').classList.remove('hidden');
-        }
-
-        async function openTeacherModal() {
-            document.getElementById('teacher-modal-title').innerText = "Thêm Giảng viên mới";
-            document.getElementById('teacher-form').reset();
-            document.getElementById('t_id').value = "";
-            document.getElementById('teacher-modal').classList.remove('hidden');
-        }
-
-        async function editStudent(id, lastName, firstName, email, phone, major, score, classId) {
-            document.getElementById('student-modal-title').innerText = "Cập nhật thông tin Sinh viên";
-            document.getElementById('s_id').value = id;
-            document.getElementById('s_lastname').value = lastName;
-            document.getElementById('s_firstname').value = firstName;
-            document.getElementById('s_email').value = email || "";
-            document.getElementById('s_phone').value = phone || "";
-            document.getElementById('s_major').value = major || "";
-            document.getElementById('s_score').value = (score !== null && score !== undefined) ? score : "";
-            await loadClassDropdown();
-            document.getElementById('s_class_id').value = classId;
-            document.getElementById('student-modal').classList.remove('hidden');
-        }
-
-        async function editClass(id, className, teacherId) {
-            document.getElementById('class-modal-title').innerText = "Cập nhật thông tin Lớp học";
-            document.getElementById('c_id').value = id;
-            document.getElementById('c_name').value = className;
-            await loadTeacherDropdown();
-            document.getElementById('c_teacher_id').value = teacherId || "";
-            document.getElementById('class-modal').classList.remove('hidden');
-        }
-
-        async function editTeacher(id, lastName, firstName, email, phone, degree) {
-            document.getElementById('teacher-modal-title').innerText = "Cập nhật thông tin Giảng viên";
-            document.getElementById('t_id').value = id;
-            document.getElementById('t_lastname').value = lastName;
-            document.getElementById('t_firstname').value = firstName;
-            document.getElementById('t_email').value = email || "";
-            document.getElementById('t_phone').value = phone || "";
-            document.getElementById('t_degree').value = degree || "";
-            document.getElementById('teacher-modal').classList.remove('hidden');
-        }
-
-        // API values are text, never HTML or executable event attributes.
-        function createTextElement(tag, value, className = '') {
-            const element = document.createElement(tag);
-            element.textContent = value ?? '';
-            element.className = className;
-            return element;
-        }
-
-        function appendCell(row, value, className = 'p-4') {
-            const cell = createTextElement('td', value, className);
-            row.append(cell);
-            return cell;
-        }
-
-        function appendBadge(row, value, className) {
-            const cell = appendCell(row, '');
-            cell.append(createTextElement('span', value, className));
-        }
-
-        function appendActions(row, onEdit, type, id) {
-            const cell = appendCell(row, '', 'p-4 flex gap-3');
-            const editButton = createTextElement('button', 'Sửa', 'text-blue-600 hover:text-blue-800 font-medium');
-            editButton.type = 'button';
-            editButton.addEventListener('click', onEdit);
-            const deleteButton = createTextElement('button', 'Xóa', 'text-red-500 hover:text-red-700 font-medium');
-            deleteButton.type = 'button';
-            deleteButton.addEventListener('click', () => deleteItem(type, id));
-            cell.append(editButton, deleteButton);
-        }
-
-        function renderRows(bodyId, records, columnCount, emptyMessage, buildRow) {
-            const fragment = document.createDocumentFragment();
-            for (const record of records) {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-slate-50';
-                buildRow(row, record);
-                fragment.append(row);
-            }
-            if (records.length === 0) {
-                const row = document.createElement('tr');
-                const cell = appendCell(row, emptyMessage, 'p-4 text-center text-slate-400');
-                cell.colSpan = columnCount;
-                fragment.append(row);
-            }
-            document.getElementById(bodyId).replaceChildren(fragment);
-        }
-
-        function renderOptions(selectId, placeholder, records, getLabel) {
-            const fragment = document.createDocumentFragment();
-            const defaultOption = createTextElement('option', placeholder);
-            defaultOption.value = '';
-            fragment.append(defaultOption);
-            for (const record of records) {
-                const option = createTextElement('option', getLabel(record));
-                option.value = record.id;
-                fragment.append(option);
-            }
-            const select = document.getElementById(selectId);
-            const previous = select.value;
-            select.replaceChildren(fragment);
-            if (Array.from(select.options).some(option => option.value === previous)) select.value = previous;
-        }
-
-        async function loadClassDropdown() {
-            const classes = await loadAll('classes');
-            renderOptions('s_class_id', '-- Chọn lớp quản lý --', classes,
-                c => `${c.class_code} - ${c.class_name}`);
-        }
-
-        async function loadFilterClassDropdown() {
-            const classes = await loadAll('classes');
-            renderOptions('filter-class', '-- Tất cả các lớp --', classes,
-                c => `${c.class_code} - ${c.class_name}`);
-        }
-
-        async function loadTeacherDropdown() {
-            const teachers = await loadAll('teachers');
-            renderOptions('c_teacher_id', '-- Chọn giảng viên cố vấn --', teachers,
-                t => `${t.teacher_code} - ${t.last_name} ${t.first_name}`);
-        }
-
-        async function loadStudents() {
-            const classId = document.getElementById('filter-class').value;
-            const sortBy = document.getElementById('sort-by').value;
-            const params = new URLSearchParams();
-            if (classId) params.set('class_id', classId);
-            if (sortBy) params.set('sort_by', sortBy);
-            const students = await loadPage('students', params);
-            if (!students) return;
-            renderRows('student-table-body', students, 8, 'Không tìm thấy sinh viên nào', (row, s) => {
-                appendCell(row, s.student_code, 'p-4 font-medium');
-                appendCell(row, s.last_name, 'p-4 font-medium');
-                appendCell(row, s.first_name, 'p-4 font-medium');
-                const className = s.class_room ? `${s.class_room.class_code} - ${s.class_room.class_name}` : 'Chưa phân lớp';
-                appendBadge(row, className, 'bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full text-xs font-semibold');
-                appendCell(row, s.email, 'p-4 text-indigo-600');
-                appendCell(row, s.major);
-                if (s.score !== null && s.score !== undefined) {
-                    appendBadge(row, s.score, 'bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-semibold');
-                } else {
-                    appendBadge(row, 'Chưa có', 'text-slate-400');
-                }
-                appendActions(row, () => editStudent(s.id, s.last_name, s.first_name,
-                    s.email, s.phone, s.major, s.score, s.class_id), 'students', s.id);
-            });
-        }
-
-        async function loadClasses() {
-            const classes = await loadPage('classes');
-            if (!classes) return;
-            renderRows('class-table-body', classes, 4, 'Chưa có dữ liệu lớp học', (row, c) => {
-                appendCell(row, c.class_code, 'p-4 font-medium');
-                appendCell(row, c.class_name);
-                appendCell(row, c.advisor ? `${c.advisor.last_name} ${c.advisor.first_name}` : 'Chưa có');
-                appendActions(row, () => editClass(c.id, c.class_name, c.teacher_id), 'classes', c.id);
-            });
-        }
-
-        async function loadTeachers() {
-            const teachers = await loadPage('teachers');
-            if (!teachers) return;
-            renderRows('teacher-table-body', teachers, 6, 'Chưa có dữ liệu giảng viên', (row, t) => {
-                appendCell(row, t.teacher_code, 'p-4 font-medium');
-                appendCell(row, `${t.last_name} ${t.first_name}`);
-                appendBadge(row, t.degree || 'N/A', 'bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-semibold');
-                appendCell(row, t.email, 'p-4 text-indigo-600');
-                appendCell(row, t.phone);
-                appendActions(row, () => editTeacher(t.id, t.last_name, t.first_name,
-                    t.email, t.phone, t.degree), 'teachers', t.id);
-            });
-        }
-
-        async function saveStudent(e) {
-            e.preventDefault();
-            let id = document.getElementById('s_id').value;
-            let scoreVal = document.getElementById('s_score').value;
-            let data = {
-                last_name: document.getElementById('s_lastname').value,
-                first_name: document.getElementById('s_firstname').value,
-                email: document.getElementById('s_email').value || null,
-                phone: document.getElementById('s_phone').value || null,
-                major: document.getElementById('s_major').value || null,
-                score: scoreVal !== "" ? parseFloat(scoreVal) : null,
-                class_id: parseInt(document.getElementById('s_class_id').value)
-            };
-            
-            let url = id ? `${API_BASE}/students/${id}` : `${API_BASE}/students/`;
-            let method = id ? 'PUT' : 'POST';
-
-            let res = await apiRequest(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            closeModal('student-modal');
-            await loadStudents();
-        }
-
-        async function saveClass(e) {
-            e.preventDefault();
-            let id = document.getElementById('c_id').value;
-            let teacherIdVal = document.getElementById('c_teacher_id').value;
-            let data = {
-                class_name: document.getElementById('c_name').value,
-                teacher_id: teacherIdVal ? parseInt(teacherIdVal) : null
-            };
-
-            let url = id ? `${API_BASE}/classes/${id}` : `${API_BASE}/classes/`;
-            let method = id ? 'PUT' : 'POST';
-
-            let res = await apiRequest(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            closeModal('class-modal');
-            await loadClasses();
-        }
-
-        async function saveTeacher(e) {
-            e.preventDefault();
-            let id = document.getElementById('t_id').value;
-            let data = {
-                last_name: document.getElementById('t_lastname').value,
-                first_name: document.getElementById('t_firstname').value,
-                email: document.getElementById('t_email').value || null,
-                phone: document.getElementById('t_phone').value || null,
-                degree: document.getElementById('t_degree').value || null
-            };
-
-            let url = id ? `${API_BASE}/teachers/${id}` : `${API_BASE}/teachers/`;
-            let method = id ? 'PUT' : 'POST';
-
-            let res = await apiRequest(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            closeModal('teacher-modal');
-            await loadTeachers();
-        }
-
-        async function deleteItem(type, id) {
-            if (!confirm('Bạn có chắc chắn muốn xóa bản ghi này không?')) return;
-            await apiRequest(`${API_BASE}/${type}/${id}`, {method: 'DELETE'});
-            await ({students: loadStudents, classes: loadClasses, teachers: loadTeachers})[type]();
-        }
-        // Catch errors at UI entry points; nested dropdown loads still propagate
-        // failures so an edit form never opens with incomplete options.
-        loadStudents = withErrors(loadStudents);
-        loadClasses = withErrors(loadClasses);
-        loadTeachers = withErrors(loadTeachers);
-        loadFilterClassDropdown = withErrors(loadFilterClassDropdown);
-        openStudentModal = withErrors(openStudentModal);
-        openClassModal = withErrors(openClassModal);
-        editStudent = withErrors(editStudent);
-        editClass = withErrors(editClass);
-        saveStudent = withErrors(saveStudent);
-        saveClass = withErrors(saveClass);
-        saveTeacher = withErrors(saveTeacher);
-        deleteItem = withErrors(deleteItem);
-        for (const group of Object.keys(pagination)) {
-            const pager = createTextElement('div', '', 'flex justify-end items-center gap-4 text-sm text-slate-600');
-            pager.id = `pagination-${group}`;
-            document.getElementById(`tab-${group}`).append(pager);
-            renderPagination(group);
-        }
-
-        // Khởi chạy mặc định khi load trang
-        loadFilterClassDropdown();
-        loadStudents();
-    </script>
+    <div id="student-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="student-modal-title" tabindex="-1"><div class="modal-card"><div class="modal-heading"><div><span class="eyebrow">HỒ SƠ SINH VIÊN</span><h2 id="student-modal-title">Thêm sinh viên</h2></div><button type="button" class="icon-button" onclick="closeModal('student-modal')" aria-label="Đóng"><svg class="icon"><use href="#i-close"/></svg></button></div><form id="student-form" onsubmit="saveStudent(event)" novalidate><input type="hidden" id="s_id"><fieldset><legend>Thông tin cá nhân</legend><div class="form-grid"><div class="field"><label for="s_lastname">Họ <span>*</span></label><input id="s_lastname" required placeholder="Nguyễn Văn"></div><div class="field"><label for="s_firstname">Tên <span>*</span></label><input id="s_firstname" required placeholder="An"></div><div class="field"><label for="s_email">Email</label><input type="email" id="s_email" placeholder="sinhvien@example.com"></div><div class="field"><label for="s_phone">Số điện thoại</label><input type="tel" id="s_phone" placeholder="09xxxxxxxx"></div></div></fieldset><fieldset><legend>Thông tin học tập</legend><div class="form-grid"><div class="field"><label for="s_major">Chuyên ngành</label><input id="s_major" placeholder="Công nghệ thông tin"></div><div class="field"><label for="s_score">Điểm trung bình</label><input type="number" step="0.1" min="0" max="10" id="s_score" placeholder="0 – 10"></div><div class="field field-wide"><label for="s_class_id">Lớp học <span>*</span></label><select id="s_class_id" required></select></div></div></fieldset><p class="form-note">* Thông tin bắt buộc. Mã sinh viên được tạo tự động.</p><div class="modal-actions"><button type="button" class="button button-secondary" onclick="closeModal('student-modal')">Hủy bỏ</button><button type="submit" class="button button-primary">Lưu sinh viên</button></div></form></div></div>
+    <div id="class-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="class-modal-title" tabindex="-1"><div class="modal-card modal-small"><div class="modal-heading"><div><span class="eyebrow">TỔ CHỨC ĐÀO TẠO</span><h2 id="class-modal-title">Thêm lớp học</h2></div><button type="button" class="icon-button" onclick="closeModal('class-modal')" aria-label="Đóng"><svg class="icon"><use href="#i-close"/></svg></button></div><form id="class-form" onsubmit="saveClass(event)" novalidate><input type="hidden" id="c_id"><div class="field"><label for="c_name">Tên lớp học <span>*</span></label><input id="c_name" required placeholder="Ví dụ: Công nghệ thông tin 01"></div><div class="field"><label for="c_teacher_id">Cố vấn học tập</label><select id="c_teacher_id"></select></div><p class="form-note">* Thông tin bắt buộc. Mã lớp được tạo tự động.</p><div class="modal-actions"><button type="button" class="button button-secondary" onclick="closeModal('class-modal')">Hủy bỏ</button><button type="submit" class="button button-primary">Lưu lớp học</button></div></form></div></div>
+    <div id="teacher-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="teacher-modal-title" tabindex="-1"><div class="modal-card"><div class="modal-heading"><div><span class="eyebrow">ĐỘI NGŨ GIẢNG DẠY</span><h2 id="teacher-modal-title">Thêm giảng viên</h2></div><button type="button" class="icon-button" onclick="closeModal('teacher-modal')" aria-label="Đóng"><svg class="icon"><use href="#i-close"/></svg></button></div><form id="teacher-form" onsubmit="saveTeacher(event)" novalidate><input type="hidden" id="t_id"><fieldset><legend>Thông tin cá nhân</legend><div class="form-grid"><div class="field"><label for="t_lastname">Họ <span>*</span></label><input id="t_lastname" required placeholder="Nguyễn Văn"></div><div class="field"><label for="t_firstname">Tên <span>*</span></label><input id="t_firstname" required placeholder="An"></div><div class="field"><label for="t_email">Email</label><input type="email" id="t_email" placeholder="giangvien@example.com"></div><div class="field"><label for="t_phone">Số điện thoại</label><input type="tel" id="t_phone" placeholder="09xxxxxxxx"></div></div></fieldset><fieldset><legend>Thông tin chuyên môn</legend><div class="field"><label for="t_degree">Học vị</label><input id="t_degree" placeholder="Thạc sĩ, Tiến sĩ…"></div></fieldset><p class="form-note">* Thông tin bắt buộc. Mã giảng viên được tạo tự động.</p><div class="modal-actions"><button type="button" class="button button-secondary" onclick="closeModal('teacher-modal')">Hủy bỏ</button><button type="submit" class="button button-primary">Lưu giảng viên</button></div></form></div></div>
+    <div id="delete-modal" class="modal hidden" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" tabindex="-1"><div class="modal-card modal-small"><span class="delete-icon"><svg class="icon"><use href="#i-trash"/></svg></span><h2 id="delete-title">Xóa bản ghi này?</h2><p class="muted">Dữ liệu đã xóa không thể khôi phục. Vui lòng kiểm tra trước khi tiếp tục.</p><div class="modal-actions"><button id="delete-cancel" type="button" class="button button-secondary">Giữ lại</button><button id="delete-confirm" type="button" class="button button-danger">Xóa bản ghi</button></div></div></div>
+    <div id="toast-container" class="toast-container" role="status" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

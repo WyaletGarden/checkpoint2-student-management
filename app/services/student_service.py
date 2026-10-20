@@ -11,9 +11,9 @@ logger = get_logger(__name__)
 class StudentService:
 
     @staticmethod
-    def get_all_students(db: Session, class_id: Optional[int] = None, sort_by: Optional[str] = None, skip: int = 0, limit: int = 100):
+    def get_all_students(db: Session, class_id: Optional[int] = None, sort_by: Optional[str] = None, skip: int = 0, limit: int = 100, q: str | None = None):
         logger.info(f"Yêu cầu lấy danh sách học sinh (class_id={class_id}, sort_by={sort_by})")
-        return crud_student.get_students(db, class_id=class_id, sort_by=sort_by, skip=skip, limit=limit)
+        return crud_student.get_students(db, class_id=class_id, sort_by=sort_by, skip=skip, limit=limit, q=q)
 
     @staticmethod
     def get_student_by_id(db: Session, student_id: int):

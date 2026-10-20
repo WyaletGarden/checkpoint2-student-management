@@ -19,12 +19,12 @@ def test_initial_migration_round_trip(tmp_path, monkeypatch):
     engine = create_engine(database_url)
     try:
         assert set(inspect(engine).get_table_names()) == {
-            "alembic_version", "teachers", "classes", "students"
+            "alembic_version", "teachers", "classes", "students", "users"
         }
         with engine.connect() as connection:
             assert connection.execute(
                 text("SELECT version_num FROM alembic_version")
-            ).scalar_one() == "f732250e75d4"
+            ).scalar_one() == "a91c2d3e4f50"
         command.check(config)
         # Re-running upgrade must preserve existing records.
         with engine.begin() as connection:

@@ -9,6 +9,8 @@ from app.core.database import Base, get_db
 from app.models.teacher import Teacher
 from app.models.class_model import Class
 from app.models.student import Student
+from app.models.user import User
+from app.core.security import create_access_token
 
 engine = create_engine(
     "sqlite://",
@@ -51,8 +53,18 @@ def db():
 
 
 @pytest.fixture
-def client():
-    return TestClient(app)
+def public_client():
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+@pytest.fixture
+def client(public_client, db):
+    user = User(username="api-test-user", hashed_password="unused-by-token-tests")
+    db.add(user)
+    db.commit()
+    public_client.headers["Authorization"] = f"Bearer {create_access_token(user.id)}"
+    return public_client
 
 
 @pytest.fixture

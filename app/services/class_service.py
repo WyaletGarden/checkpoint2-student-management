@@ -12,9 +12,9 @@ logger = get_logger(__name__)
 class ClassService:
 
     @staticmethod
-    def get_all_classes(db: Session, skip: int = 0, limit: int = 100):
+    def get_all_classes(db: Session, skip: int = 0, limit: int = 100, q: str | None = None):
         logger.info("Yêu cầu lấy danh sách lớp học")
-        return crud_class.get_classes(db, skip=skip, limit=limit)
+        return crud_class.get_classes(db, skip=skip, limit=limit, q=q)
 
     @staticmethod
     def get_class_by_id(db: Session, class_id: int):
