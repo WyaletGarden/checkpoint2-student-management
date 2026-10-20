@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload  # 1. Import joinedload từ sqlalchemy.orm
 from app.core.database import get_db
 from app.models.student import Student
-from app.api.deps import get_current_user
+from app.api.deps import require_admin
 
-router = APIRouter(prefix="/demo", tags=["Demo N+1 Query"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/demo", tags=["Demo N+1 Query"], dependencies=[Depends(require_admin)])
 
 @router.get("/fixed-n-plus-1")
 def get_students_fixed(db: Session = Depends(get_db)):

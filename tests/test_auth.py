@@ -18,9 +18,16 @@ def test_register_stores_only_bcrypt_hash(client, db):
     response = client.post("/register", json=CREDENTIALS)
     assert response.status_code == 201
     user = db.query(User).one()
-    assert response.json() == {"id": user.id, "username": "testuser"}
+    assert response.json() == {"id": user.id, "username": "testuser", "role": "user"}
     assert user.hashed_password != CREDENTIALS["password"]
     assert bcrypt.checkpw(CREDENTIALS["password"].encode(), user.hashed_password.encode())
+
+
+def test_register_cannot_self_assign_admin(client, db):
+    response = client.post("/register", json=dict(CREDENTIALS, role="admin"))
+    assert response.status_code == 201
+    assert response.json()["role"] == "user"
+    assert db.query(User).one().role == "user"
 
 
 def test_duplicate_username(client, db):

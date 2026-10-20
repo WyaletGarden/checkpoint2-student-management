@@ -77,8 +77,9 @@ def test_real_login_token_accesses_protected_routes(public_client):
     response = public_client.post("/login", json=credentials)
     assert response.status_code == 200
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
-    for path in ["/api/v1/students/", "/api/v1/classes/", "/api/v1/teachers/", "/demo/fixed-n-plus-1"]:
+    for path in ["/api/v1/students/", "/api/v1/classes/", "/api/v1/teachers/"]:
         assert public_client.get(path, headers=headers).status_code == 200
+    assert public_client.get("/demo/fixed-n-plus-1", headers=headers).status_code == 403
 
 
 def test_openapi_declares_bearer_auth(public_client):

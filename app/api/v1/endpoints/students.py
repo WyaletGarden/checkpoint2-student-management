@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Literal
 
 from app.core.database import get_db
+from app.api.deps import require_admin
 from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse
 from app.services.student_service import StudentService
 
@@ -30,15 +31,17 @@ def get_students(
 def get_student(id: int, db: Session = Depends(get_db)):
     return StudentService.get_student_by_id(db, student_id=id)
 
-@router.post("/", response_model=StudentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=StudentResponse, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(require_admin)])
 def create_student(student: StudentCreate, db: Session = Depends(get_db)):
     return StudentService.create_new_student(db=db, student_in=student)
 
-@router.put("/{id}", response_model=StudentResponse)
+@router.put("/{id}", response_model=StudentResponse, dependencies=[Depends(require_admin)])
 def update_student(id: int, student: StudentUpdate, db: Session = Depends(get_db)):
     return StudentService.update_existing_student(db=db, student_id=id, student_in=student)
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT,
+               dependencies=[Depends(require_admin)])
 def delete_student(id: int, db: Session = Depends(get_db)):
     StudentService.delete_existing_student(db=db, student_id=id)
     return None

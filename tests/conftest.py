@@ -60,7 +60,26 @@ def public_client():
 
 @pytest.fixture
 def client(public_client, db):
-    user = User(username="api-test-user", hashed_password="unused-by-token-tests")
+    """Admin client for existing CRUD behavior and validation tests."""
+    user = User(username="api-test-user", hashed_password="unused-by-token-tests", role="admin")
+    db.add(user)
+    db.commit()
+    public_client.headers["Authorization"] = f"Bearer {create_access_token(user.id)}"
+    return public_client
+
+
+@pytest.fixture
+def user_client(public_client, db):
+    user = User(username="regular-test-user", hashed_password="unused", role="user")
+    db.add(user)
+    db.commit()
+    public_client.headers["Authorization"] = f"Bearer {create_access_token(user.id)}"
+    return public_client
+
+
+@pytest.fixture
+def admin_client(public_client, db):
+    user = User(username="admin-test-user", hashed_password="unused", role="admin")
     db.add(user)
     db.commit()
     public_client.headers["Authorization"] = f"Bearer {create_access_token(user.id)}"

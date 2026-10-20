@@ -44,6 +44,14 @@ def get_current_user(
         raise unauthorized
     return user
 
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    """Authorize using the current database role, including for existing tokens."""
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Admin role required")
+    return user
+
+
 def get_db():
     db = SessionLocal()
     try:

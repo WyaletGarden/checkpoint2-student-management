@@ -64,7 +64,8 @@ def test_update_student(client, sample_student):
     assert data["score"] == 9.0
 
 
-def test_delete_student(client, sample_student):
+def test_delete_student(admin_client, sample_student):
+    client = admin_client
     response = client.delete(f"/api/v1/students/{sample_student.id}")
     assert response.status_code == 204
     follow_up = client.get(f"/api/v1/students/{sample_student.id}")

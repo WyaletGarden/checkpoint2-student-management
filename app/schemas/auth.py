@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 
@@ -17,6 +19,7 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     username: str
+    role: Literal["admin", "user"]
 
 
 class TokenResponse(BaseModel):

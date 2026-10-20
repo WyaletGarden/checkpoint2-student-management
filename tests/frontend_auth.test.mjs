@@ -147,6 +147,12 @@ h.respond(() => ({status: 200, data: []}));
 await h.run("apiRequest('/api/v1/students/')");
 assert.equal(h.requests.at(-1).headers.get('Authorization'), `Bearer ${token}`);
 
+h.respond(() => ({status: 403, data: {detail: 'Admin role required'}}));
+await assert.rejects(h.run("apiRequest('/api/v1/students/1', {method: 'DELETE'})"),
+    error => error.message === 'Admin role required');
+assert.equal(h.elements.get('management-app').hidden, false);
+assert.equal(JSON.parse(h.storage.get('student-admin-session')).token, token);
+
 h.elements.get('student-table-body').children.push('private-data');
 h.respond(() => ({status: 401, data: {detail: 'Invalid token'}}));
 await assert.rejects(h.run("apiRequest('/api/v1/students/')"), error => error.silent);

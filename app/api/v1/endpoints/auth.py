@@ -16,7 +16,7 @@ _DUMMY_HASH = hash_password("dummy-password-for-timing")
 def register(credentials: Credentials, db: Session = Depends(get_db)):
     if db.query(User).filter(User.username == credentials.username).first():
         raise HTTPException(status_code=409, detail="Username already registered")
-    user = User(username=credentials.username,
+    user = User(username=credentials.username, role="user",
                 hashed_password=hash_password(credentials.password.get_secret_value()))
     db.add(user)
     try:

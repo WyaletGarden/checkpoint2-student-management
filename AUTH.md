@@ -15,7 +15,8 @@ Both endpoints accept JSON:
 {"username": "student01", "password": "StrongPassword123!"}
 ```
 
-- `POST /register`: returns 201 with `id` and `username`; duplicates return 409.
+- `POST /register`: returns 201 with `id`, `username` and `role: "user"`;
+  duplicates return 409. A submitted `role` cannot grant admin access.
 - `POST /login`: returns `access_token` and `token_type: "bearer"`;
   incorrect credentials return 401.
 
@@ -31,6 +32,51 @@ users return 401 with `WWW-Authenticate: Bearer`.
 In Swagger `/docs`, click **Authorize** and paste the access token.
 Use `Depends(get_current_user)` on an endpoint to access its authenticated user,
 or on a router to protect every endpoint in that router.
+
+## Roles and administrative permissions
+
+Apply the role migration before starting the updated application:
+`uv run alembic upgrade head`.
+The `users.role` column accepts only `admin` or `user`, is required, and defaults
+to `user` for both existing accounts and newly registered accounts.
+
+Only an admin can call the following endpoints:
+
+- `POST /api/v1/students/`, `PUT /api/v1/students/{id}`,
+  `DELETE /api/v1/students/{id}`.
+- `POST /api/v1/classes/`, `PUT /api/v1/classes/{id}`,
+  `DELETE /api/v1/classes/{id}`.
+- `POST /api/v1/teachers/`, `PUT /api/v1/teachers/{id}`,
+  `DELETE /api/v1/teachers/{id}`.
+- `GET /demo/fixed-n-plus-1` (returns the complete student roster).
+
+Authorization behavior:
+
+- Missing or invalid authentication returns 401.
+- An authenticated regular user receives 403 with `detail: "Admin role required"`,
+  including when the target ID does not exist. No record is created, changed or deleted.
+- Authorized requests retain normal validation and response codes: creation returns
+  201, successful deletion returns 204, and missing update/delete targets return 404.
+
+Roles are read from the database on every request; changing a role takes effect
+with an already issued token. JWT role claims are not used for authorization.
+Both roles can read list/detail endpoints for students, classes and teachers.
+These reads are not scoped to a user's own profile or class: accounts currently
+have no relationship to student records. Such restrictions require an additional
+data model and business policy. Registration and login remain public; registration
+always assigns `user`. The frontend displays a 403 error while keeping the
+signed-in session; management action buttons remain visible to both roles.
+
+To grant the first admin, register an account and run the following parameterized
+statement through a trusted database administration tool, binding `username` to
+that account's exact username, then commit:
+
+```sql
+UPDATE users SET role = 'admin' WHERE username = :username;
+```
+
+Verify that exactly one account was updated. Use `role = 'user'` to revoke admin
+access. There is no public endpoint for changing roles.
 
 ## Web interface
 
