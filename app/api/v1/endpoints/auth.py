@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.crud.transactions import is_unique_violation_for
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
 from app.schemas.auth import Credentials, TokenResponse, UserResponse
@@ -21,9 +22,11 @@ def register(credentials: Credentials, db: Session = Depends(get_db)):
     db.add(user)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Username already registered") from None
+        if is_unique_violation_for(exc, User, "username"):
+            raise HTTPException(status_code=409, detail="Username already registered") from None
+        raise
     db.refresh(user)
     return user
 

@@ -4,11 +4,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.logger import get_logger
 from app.api.v1.router import api_router
 from app.api.v1.endpoints.auth import router as auth_router
 import app.models  # Register ORM relationships; schema is managed by Alembic.
 
 from app.routers import demo_n1
+
+logger = get_logger(__name__)
 
 app = FastAPI(title=settings.PROJECT_NAME)
 app.include_router(auth_router)
@@ -17,10 +20,10 @@ app.include_router(demo_n1.router)
 # Cấu hình CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
     expose_headers=["X-Total-Count"],
 )
 
@@ -31,6 +34,12 @@ async def global_exception_handler(request: Request, exc: Exception):
     Bắt mọi lỗi không mong muốn (Unhandled Exceptions / 500 Internal Server Error)
     Ngăn chặn việc lộ Traceback ra bên ngoài và trả về JSON thống nhất.
     """
+    logger.error(
+        "Unhandled error: %s %s",
+        request.method,
+        request.url.path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={

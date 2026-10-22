@@ -1,7 +1,9 @@
 from app.schemas.input_base import InputModel
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Literal, Optional
 from app.schemas.class_schema import ClassResponse
+
+StudentSort = Literal["score_asc", "score_desc", "first_name", "last_name"]
 
 class StudentCreate(InputModel):
     student_code: Optional[str] = None

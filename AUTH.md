@@ -5,8 +5,8 @@ Install dependencies with `uv sync`, then run `uv run alembic upgrade head`.
 Set `JWT_SECRET_KEY` in `.env` to a random secret (at least 32 bytes), shared
 by all application workers. Generate one with
 `uv run python -c "import secrets; print(secrets.token_urlsafe(48))"`.
-Without this setting, the app generates a temporary key on each process start;
-tokens will stop working after a restart or across different workers.
+This setting is required: missing, blank, or shorter-than-32-byte keys prevent
+startup. Keep the same key across restarts; rotating it invalidates existing tokens.
 `ACCESS_TOKEN_EXPIRE_MINUTES` defaults to 30.
 
 Both endpoints accept JSON:

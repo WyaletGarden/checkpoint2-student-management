@@ -1,3 +1,8 @@
+import os
+
+# Set before importing the app; tests must never use the deployment signing key.
+os.environ["JWT_SECRET_KEY"] = "test-only-jwt-signing-key-do-not-use-in-production-" + "x" * 32
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

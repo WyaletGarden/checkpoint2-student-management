@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from typing import List, Optional
 from app.crud import crud_student
 from app.models.class_model import Class
-from app.schemas.student import StudentCreate, StudentUpdate
+from app.schemas.student import StudentCreate, StudentUpdate, StudentSort
+from app.models.student import Student
 from app.core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -11,7 +11,14 @@ logger = get_logger(__name__)
 class StudentService:
 
     @staticmethod
-    def get_all_students(db: Session, class_id: Optional[int] = None, sort_by: Optional[str] = None, skip: int = 0, limit: int = 100, q: str | None = None):
+    def get_all_students(
+        db: Session,
+        class_id: int | None = None,
+        sort_by: StudentSort | None = None,
+        skip: int = 0,
+        limit: int = 100,
+        q: str | None = None,
+    ) -> tuple[list[Student], int]:
         logger.info(f"Yêu cầu lấy danh sách học sinh (class_id={class_id}, sort_by={sort_by})")
         return crud_student.get_students(db, class_id=class_id, sort_by=sort_by, skip=skip, limit=limit, q=q)
 

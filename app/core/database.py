@@ -5,8 +5,12 @@ from app.core.config import settings
 # Use the same settings as Alembic (including .env and environment overrides).
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
-# Khởi tạo engine với echo=True để in toàn bộ câu lệnh SQL ra terminal
-engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
+# SQL logging is opt-in; bound parameter values remain hidden.
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    echo=settings.SQL_ECHO,
+    hide_parameters=True,
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -16,5 +20,8 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

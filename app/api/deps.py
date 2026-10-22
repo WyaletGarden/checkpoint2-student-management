@@ -1,11 +1,10 @@
-from app.core.database import SessionLocal
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 import jwt
 
 from app.core.config import settings
-from app.core.database import get_db as get_auth_db
+from app.core.database import get_db
 from app.models.user import User
 
 
@@ -14,7 +13,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: Session = Depends(get_auth_db),
+    db: Session = Depends(get_db),
 ) -> User:
     """Validate a signed, unexpired access token and resolve its active user."""
     unauthorized = HTTPException(
@@ -50,14 +49,3 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                             detail="Admin role required")
     return user
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
