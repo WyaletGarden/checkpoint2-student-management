@@ -69,6 +69,14 @@ Yêu cầu: **Python 3.12 trở lên** và **uv**. Chạy các lệnh tại thư
 
 Mở giao diện tại http://127.0.0.1:8000 hoặc tài liệu API tại http://127.0.0.1:8000/docs. Frontend được phục vụ cùng backend, không cần chạy riêng.
 
+## Chạy bằng Docker
+
+Xem [hướng dẫn viết Dockerfile, build và chạy thử container](DOCKER.md).
+Ví dụ dùng SQLite trong Docker volume, chạy Alembic trước khi khởi động API và phục vụ cả frontend.
+
+Để chạy app cùng PostgreSQL trong hai container, xem [Docker Compose](DOCKER.md#docker-compose-app--postgresql).
+File `docker-compose.yml` tự đợi database sẵn sàng và chạy migration trước khi mở API.
+
 ## Sử dụng
 
 - Đăng ký tài khoản trên giao diện, sau đó đăng nhập.

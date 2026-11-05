@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session, joinedload  # 1. Import joinedload từ sqlalchemy.orm
+from sqlalchemy.orm import Session, selectinload  # 1. Import selectinload từ sqlalchemy.orm
 from app.core.database import get_db
 from app.models.student import Student
 from app.api.deps import require_admin
@@ -8,9 +8,9 @@ router = APIRouter(prefix="/demo", tags=["Demo N+1 Query"], dependencies=[Depend
 
 @router.get("/fixed-n-plus-1")
 def get_students_fixed(db: Session = Depends(get_db)):
-    # 2. Thêm .options(joinedload(Student.class_room)) vào câu query
-    # Câu lệnh này sẽ tự động sinh ra cú pháp SQL JOIN bảng classes ngay lập tức.
-    students = db.query(Student).options(joinedload(Student.class_room)).all()
+    # 2. Tải sinh viên trước, sau đó tải các lớp liên quan theo nhóm bằng WHERE IN.
+    # selectinload tránh truy vấn riêng cho từng sinh viên khi truy cập class_room.
+    students = db.query(Student).options(selectinload(Student.class_room)).all()
     
     response_data = []
     
@@ -27,7 +27,7 @@ def get_students_fixed(db: Session = Depends(get_db)):
         })
         
     return {
-        "message": "Đã tối ưu thành công! Xử lý lỗi N+1 bằng joinedload.",
+        "message": "Đã tối ưu thành công! Xử lý lỗi N+1 bằng selectinload.",
         "total_students": len(students),
         "data": response_data
     }
