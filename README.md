@@ -107,3 +107,11 @@ Kiểm thử logic frontend (cần Node.js):
 ```powershell
 node tests/frontend_auth.test.mjs
 ```
+
+## GitHub Actions
+
+Workflow [Test suite](.github/workflows/tests.yml) tự động chạy mỗi khi push lên bất kỳ branch nào, kể cả branch có tên chứa `/`.
+Hai job chạy độc lập: backend dùng Python 3.12 và `uv sync --locked --dev` để cài đúng dependency trong `uv.lock`, sau đó chạy toàn bộ pytest; frontend dùng Node.js 24 để chạy test JavaScript.
+
+CI dùng SQLite tạm và JWT key kiểm thử do `tests/conftest.py` thiết lập, không cần cấu hình GitHub Secrets hay khởi động Docker/PostgreSQL.
+Sau khi commit và push workflow, mở tab **Actions → Test suite** trên GitHub để xem kết quả và log từng job. Test thất bại sẽ khiến job tương ứng báo lỗi.

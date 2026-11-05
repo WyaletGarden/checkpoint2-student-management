@@ -1,0 +1,55 @@
+name: Test suite
+
+on:
+  push:
+    branches:
+      - '**'
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend tests (Python 3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: sqlite://
+      SQL_ECHO: 'false'
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: '0.12.9'
+          python-version: '3.12'
+          enable-cache: true
+
+      - name: Install dependencies from lockfile
+        run: uv sync --locked --dev
+
+      - name: Run backend test suite
+        continue-on-error: false
+        run: uv run --no-sync pytest -q
+
+  frontend:
+    name: Frontend tests (Node.js 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Run frontend test suite
+        continue-on-error: false
+        run: node tests/frontend_auth.test.mjs
