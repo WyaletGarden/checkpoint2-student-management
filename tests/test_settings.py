@@ -39,6 +39,23 @@ def test_sql_echo_reads_environment(monkeypatch, value, expected):
     assert Settings(_env_file=None).SQL_ECHO is expected
 
 
+def test_shared_dotenv_accepts_compose_settings_without_exposing_password(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+    monkeypatch.delenv("APP_PORT", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "DATABASE_URL=sqlite:///./students.db\n"
+        "POSTGRES_PASSWORD=test-only-compose-password\nAPP_PORT=8123\n",
+        encoding="utf-8",
+    )
+    config = Settings(_env_file=env_file)
+    assert config.DATABASE_URL == "sqlite:///./students.db"
+    assert config.APP_PORT == 8123
+    assert config.POSTGRES_PASSWORD.get_secret_value() == "test-only-compose-password"
+    assert "test-only-compose-password" not in repr(config)
+
+
 def test_application_engine_hides_parameters():
     assert engine.echo == settings.SQL_ECHO
     assert engine.hide_parameters is True

@@ -1,267 +1,167 @@
-# Viết Dockerfile, build và chạy thử
+# Chạy Student Management bằng Docker
 
-Chạy các lệnh PowerShell dưới đây tại thư mục gốc project, nơi chứa `Dockerfile`.
-Ví dụ này dùng SQLite riêng cho container; database được lưu trong volume `student-management-data`.
+Luồng mặc định dùng ba service: FastAPI (`app`), PostgreSQL 17 (`db`) và Redis 8 (`redis`).
+Docker Compose tạo network riêng, chạy migration trước API và giữ dữ liệu PostgreSQL trong volume.
+Không cần cài Python, uv hoặc Node.js trên máy host để chạy ứng dụng bằng Compose.
 
-Để chạy app và PostgreSQL bằng một lệnh, xem [Docker Compose](#docker-compose-app--postgresql).
+## 1. Chuẩn bị
 
-## 1. Chuẩn bị Docker và cấu hình
-
-Cài [Docker Desktop cho Windows](https://docs.docker.com/desktop/setup/install/windows-install/),
-bật WSL 2 theo hướng dẫn cài đặt và dùng chế độ **Linux containers**.
-Mở Docker Desktop, đợi engine sẵn sàng, rồi mở lại terminal trong IDE:
+Cài [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/), bật Linux containers và đợi engine sẵn sàng.
+Chạy các lệnh PowerShell tại thư mục gốc dự án:
 
 ```powershell
 docker version
-```
-
-Kết quả cần có cả phần `Client` và `Server`. Lỗi không nhận lệnh `docker` thường do chưa
-cài Docker hoặc terminal chưa cập nhật PATH; lỗi kết nối engine thì kiểm tra Docker Desktop.
-
-Trên máy hiện tại, Docker đã được tìm thấy ở bản cài theo tài khoản Windows.
-Nếu terminal vẫn không nhận lệnh, thêm thư mục CLI vào PATH của **phiên PowerShell hiện tại**:
-
-```powershell
-$env:Path += ";$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin"
-docker version
-```
-
-Nếu chưa có `.env`, tạo từ mẫu (giữ nguyên file đang dùng nếu đã có):
-
-```powershell
+docker compose version
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-Điền `JWT_SECRET_KEY` trong `.env` bằng chuỗi ngẫu nhiên có ít nhất 32 byte UTF-8.
-Nếu cần tạo khóa mới sau khi build image ở bước 3:
+Nếu terminal chưa nhận Docker ở bản cài theo tài khoản Windows, mở lại terminal hoặc thêm PATH cho phiên hiện tại:
 
 ```powershell
-docker run --rm student-management:local python -c "import secrets; print(secrets.token_urlsafe(48))"
+$env:Path += ";$env:LOCALAPPDATA\Programs\DockerDesktop\resources\bin"
 ```
 
-Chép kết quả vào `JWT_SECRET_KEY=...`, giữ nguyên khóa khi khởi động lại. Không cần
-Python hoặc uv trên máy host để build/chạy container. File `.env` không được đưa vào image;
-`--env-file .env` sẽ truyền cấu hình vào container lúc chạy.
+Điền `POSTGRES_PASSWORD` và `JWT_SECRET_KEY` trong `.env`. Có thể tạo hai giá trị bằng Docker:
 
-## 2. Hiểu Dockerfile của project
+```powershell
+docker run --rm python:3.12-slim python -c "import secrets; print('POSTGRES_PASSWORD=' + secrets.token_hex(32)); print('JWT_SECRET_KEY=' + secrets.token_hex(48))"
+```
 
-- `FROM python:3.12-slim`: bắt đầu từ image Python 3.12 bản gọn, phù hợp `requires-python` của project.
-- `ENV`: tắt file bytecode, xuất log ngay và đặt SQLite mặc định tại `/data/students.db`.
-- `WORKDIR /app`: các lệnh tiếp theo chạy trong `/app`, đúng với đường dẫn tương đối `frontend` của ứng dụng.
-- `COPY requirements.txt` rồi `RUN ... pip install`: cài các phiên bản đã chốt trong project. Tách khỏi source để tận dụng cache khi chỉ sửa code.
-- Các lệnh `COPY` còn lại đưa backend, frontend và Alembic vào image.
-- `RUN groupadd ...` và `USER appuser`: chạy app bằng user thường; `/data` và `/app/logs` được cấp quyền ghi cho user này.
-- `EXPOSE 8000`: mô tả cổng ứng dụng; cần `-p` ở bước chạy để truy cập từ máy host.
-- `CMD [...]`: chạy Uvicorn tại `0.0.0.0:8000` để nhận kết nối qua cổng Docker. Không dùng `--reload` trong ví dụ này.
+Chép các giá trị vào file, không commit `.env`. Giữ nguyên JWT key và mật khẩu PostgreSQL qua các lần khởi động.
+Mật khẩu PostgreSQL được ghép vào URL nên dùng ký tự URL-safe, ví dụ chuỗi hex được tạo ở trên.
+Nếu chuyển từ cấu hình cũ `.env.compose`, giữ nguyên `POSTGRES_PASSWORD` của file đó khi đưa sang `.env`, vì volume PostgreSQL có thể đã tồn tại.
 
-`.dockerignore` loại `.env`, môi trường ảo, database, log và cache khỏi build context.
-Alembic chạy ở bước riêng sau khi có database và cấu hình runtime, không chạy khi build image.
+Các cấu hình chính:
 
-## 3. Build image
+```dotenv
+POSTGRES_PASSWORD=
+JWT_SECRET_KEY=
+APP_PORT=8002
+SQL_ECHO=false
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+CORS_ORIGINS=[]
+STUDENTS_CACHE_TTL_SECONDS=60
+STUDENTS_CACHE_NAMESPACE=student-management
+```
+
+Hai trường mật khẩu/khóa phải được điền trước khi chạy. `APP_PORT` là cổng HTTP trên host.
+Compose tự đặt URL database thành `db:5432` và địa chỉ Redis thành `redis:6379` trong container app;
+các giá trị `DATABASE_URL`, `REDIS_HOST`, `REDIS_PORT` dùng cho chạy Python trên host không làm thay đổi kết nối nội bộ này.
+
+## 2. Khởi động
+
+```powershell
+docker compose config --quiet
+docker compose up --build -d --wait
+docker compose ps
+```
+
+Với `APP_PORT=8002`, truy cập:
+
+- Giao diện: http://127.0.0.1:8002/
+- Swagger: http://127.0.0.1:8002/docs
+- OpenAPI: http://127.0.0.1:8002/openapi.json
+
+Cả ba service cần ở trạng thái healthy. App đợi database và Redis healthy trước khi chạy migration.
+Nếu migration lỗi, Uvicorn không khởi động. App phục vụ cả frontend nên không cần container frontend riêng.
+Chỉ app publish cổng ra host; PostgreSQL và Redis dùng network nội bộ, tránh xung đột các cổng 5432/6379 đang có trên máy.
+
+```powershell
+docker compose logs --tail 100 app db redis
+```
+
+Nếu vẫn muốn dùng file cấu hình riêng, các lệnh tương đương là
+`docker compose --env-file .env.compose up --build -d --wait`.
+`.env.compose.example` được giữ để hỗ trợ cách chạy tùy chọn này; luồng mặc định dùng `.env`.
+
+## 3. Kiểm tra API, database và cache
+
+Đăng ký/đăng nhập tại giao diện hoặc Swagger. Tài khoản mới có quyền user, đọc được danh sách.
+Quyền admin để thêm/sửa/xóa được mô tả trong [AUTH.md](AUTH.md).
+
+Chạy kiểm tra tích hợp tự động:
+
+```powershell
+Get-Content -Raw -Encoding UTF8 scripts/compose_smoke.py | docker compose exec -T app python -
+```
+
+Script kiểm tra frontend, Swagger, kết nối PostgreSQL, đăng ký/đăng nhập và API sinh viên;
+đồng thời kiểm tra cache hit và TTL thực trên Redis. Nó dùng tài khoản và query ngẫu nhiên riêng,
+sau đó xóa tài khoản/cache thử nghiệm. Cần để `STUDENTS_CACHE_TTL_SECONDS` lớn hơn 0.
+Kết quả thành công kết thúc bằng `Compose smoke passed`.
+
+Để quan sát cache thủ công:
+
+```powershell
+docker compose exec redis redis-cli MONITOR
+```
+
+Gọi cùng `GET /api/v1/students/` hai lần trong TTL: lần đầu có `SET ... EX 60`,
+lần sau chỉ đọc cache. Khi tạo/sửa/xóa sinh viên, sửa lớp hoặc sửa/xóa giảng viên,
+generation đổi; key cũ tự hết hạn. Nhấn Ctrl+C để dừng MONITOR.
+
+Kết nối PostgreSQL để kiểm tra bảng:
+
+```powershell
+docker compose exec db psql -U student -d student_management
+```
+
+Trong psql: `\dt` xem các bảng, `\q` để thoát.
+
+## 4. Dừng, cập nhật và giữ dữ liệu
+
+```powershell
+docker compose stop
+docker compose start --wait
+```
+
+Sau khi sửa code hoặc migration:
+
+```powershell
+docker compose up --build -d --wait
+```
+
+Để tạo lại container và kiểm tra dữ liệu vẫn còn:
+
+```powershell
+docker compose up -d --force-recreate --wait
+```
+
+`docker compose down` xóa container/network và giữ volume PostgreSQL.
+Chỉ dùng `docker compose down --volumes` khi muốn xóa cả database.
+Redis chỉ giữ cache, không có volume; mất cache sẽ khiến request kế tiếp truy vấn database và tạo lại cache.
+
+## 5. Chạy image độc lập với SQLite
+
+Đây là cách chạy tùy chọn, không khởi động PostgreSQL/Redis. Ví dụ tắt cache và dùng cổng 8003:
 
 ```powershell
 docker build -t student-management:local .
-```
-
-`-t` đặt tên và tag cho image; dấu `.` chọn thư mục hiện tại làm build context.
-Lần đầu cần tải base image và các thư viện. Nếu bước cài thư viện lỗi, xem tên package
-và phiên bản trong log; Dockerfile sử dụng nguyên `requirements.txt` của project.
-
-## 4. Tạo bảng bằng container tạm
-
-Đảm bảo đã điền `JWT_SECRET_KEY` trước khi chạy:
-
-```powershell
 docker volume create student-management-data
 docker run --rm --env-file .env -e DATABASE_URL=sqlite:////data/students.db --mount type=volume,source=student-management-data,target=/data student-management:local python -m alembic upgrade head
+docker run -d --name student-management-sqlite --env-file .env -e DATABASE_URL=sqlite:////data/students.db -e STUDENTS_CACHE_TTL_SECONDS=0 --mount type=volume,source=student-management-data,target=/data -p 127.0.0.1:8003:8000 student-management:local
 ```
 
-Chỉ tiếp tục nếu migration kết thúc thành công. `--rm` xóa container migration sau khi
-hoàn tất; volume vẫn giữ database. Phần `python -m alembic ...` thay thế `CMD` của image.
-`-e DATABASE_URL=...` ghi đè URL trong `.env` để migration và API cùng dùng file trên volume.
-Đây là database mới, không tự sao chép dữ liệu SQLite đang có trên máy host.
+Mở http://127.0.0.1:8003/docs. Đây là database SQLite riêng trong volume, không tự sao chép dữ liệu trên host.
 
-## 5. Chạy ứng dụng và kiểm tra
+## 6. Cách image và CI được kiểm tra
 
-```powershell
-docker run -d --name student-management --env-file .env -e DATABASE_URL=sqlite:////data/students.db --mount type=volume,source=student-management-data,target=/data -p 127.0.0.1:8000:8000 student-management:local
-docker ps
-docker logs --tail 50 student-management
-```
+Dockerfile dùng Python 3.12 slim, cài dependency từ `requirements.txt`, sau đó copy backend,
+frontend và Alembic. App chạy bằng user thường; `/data` và `/app/logs` có quyền ghi.
+`.dockerignore` loại secrets, database, log và môi trường phát triển khỏi image.
 
-`-d` chạy nền; `--name` đặt tên container; `-p 127.0.0.1:8000:8000` ánh xạ cổng
-8000 trên máy của bạn vào cổng 8000 của container, chỉ cho truy cập từ máy này.
+Job `Docker Compose integration` trên GitHub Actions dùng project, cấu hình và database kiểm thử riêng.
+Job build/chạy ba service, thực hiện smoke test, tạo một bản ghi kiểm tra volume,
+tạo lại container và xác nhận bản ghi còn tồn tại. Khi kết thúc, tài nguyên của project CI được dọn bằng `down --volumes`.
 
-Đợi log xuất hiện `Application startup complete`, rồi mở:
+## 7. Xử lý lỗi thường gặp
 
-- Giao diện: http://127.0.0.1:8000/
-- Swagger: http://127.0.0.1:8000/docs
-
-Kiểm tra HTTP và thử đăng ký/đăng nhập trên giao diện để xác nhận database hoạt động:
-
-```powershell
-(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/).StatusCode
-(Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/openapi.json).StatusCode
-```
-
-Hai lệnh HTTP dự kiến trả `200`; chúng kiểm tra frontend và API schema, chưa kiểm tra truy vấn database.
-Frontend được phục vụ trong cùng container nên không cần chạy server frontend riêng.
-
-## 6. Dừng và chạy lại
-
-```powershell
-docker stop student-management
-docker start student-management
-```
-
-Sau khi sửa source, build lại image ở bước 3, chạy migration nếu có thay đổi schema,
-rồi tạo lại container để dùng image mới:
-
-```powershell
-docker stop student-management
-docker rm student-management
-```
-
-Sau đó chạy lại lệnh `docker run -d ...` ở bước 5. Giữ nguyên volume và JWT key để
-giữ dữ liệu và hiệu lực token. Log file nằm trong container; `docker logs` dùng để xem
-log khi chạy thử, log cũ của container sẽ mất khi xóa container.
-
-## Lỗi thường gặp
-
-- Container thoát ngay: chạy `docker ps -a` và `docker logs student-management`; kiểm tra `JWT_SECRET_KEY` đủ dài và `CORS_ORIGINS` là mảng JSON hợp lệ.
-- `no such table`: chạy migration ở bước 4, dùng đúng URL và volume như container API.
-- Cổng 8000 đang bận: đổi thành `-p 127.0.0.1:8001:8000`, truy cập cổng `8001` trên trình duyệt.
-- Tên container đã tồn tại: dùng `docker start student-management` để chạy lại container cũ hoặc dừng/xóa nó trước khi tạo container mới.
-- Nếu chuyển sang PostgreSQL trên máy Windows: dùng hostname `host.docker.internal` thay cho `localhost` trong URL; cấu hình PostgreSQL cho phép kết nối phù hợp. Bỏ phần ghi đè SQLite và volume `/data` ở **cả** lệnh migration và API để dùng cùng URL PostgreSQL trong `.env`.
-
-Tham khảo: [Dockerfile](https://docs.docker.com/reference/dockerfile/),
-[docker run](https://docs.docker.com/reference/cli/docker/container/run/),
-[Docker volumes](https://docs.docker.com/engine/storage/volumes/).
-
-## Kết quả chạy thử ngày 30/10/2026
-
-- Build thành công image `student-management:local` trên Docker Desktop, Linux containers.
-- `alembic upgrade head` chạy thành công cả ba migration trên volume mới.
-- Container `student-management` phục vụ tại http://127.0.0.1:8000/.
-- `/`, `/docs`, `/openapi.json` đều trả HTTP `200` từ máy host.
-- Đăng ký trả `201`, đăng nhập trả `200` và cấp JWT; đọc `/api/v1/students/` trả `200`.
-- Tài khoản dùng để kiểm tra đã được xóa khỏi database.
-- Tiến trình chạy với UID `10001`, ghi được `/data` và `/app/logs`; image không chứa `/app/.env`.
-
-Đây là kiểm tra tích hợp nhanh trong container, chưa chạy toàn bộ bộ kiểm thử của project.
-
-## Docker Compose: app + PostgreSQL
-
-`docker-compose.yml` chạy hai service:
-
-- `db`: PostgreSQL 17, lưu dữ liệu trong volume `student-management_postgres-data`.
-- `app`: build từ Dockerfile hiện có, kết nối `db:5432`, chạy `alembic upgrade head`, rồi khởi động Uvicorn.
-
-Compose tạo network chung và phân giải tên service `db` thành địa chỉ container PostgreSQL.
-Trong container app, `localhost` là chính app, vì vậy URL phải dùng `db`, không dùng `localhost`.
-Database không cần publish cổng ra Windows để app kết nối được.
-Healthcheck `pg_isready` cùng `depends_on: condition: service_healthy` đảm bảo database
-sẵn sàng trước khi app chạy migration. Migration lỗi thì Uvicorn không khởi động.
-Ví dụ này dành cho một container app chạy cục bộ.
-
-### Chuẩn bị cấu hình riêng
-
-Giữ `.env` hiện tại để dùng cho cách chạy cũ. Compose dùng `.env.compose` và chỉ truyền
-các biến cần thiết vào app; không tự dùng URL SQLite hoặc Aiven trong `.env`.
-File `.env.compose` đã được bỏ qua bởi Git và Docker build context.
-
-Nếu chưa có `.env.compose`, đoạn PowerShell sau tạo file với hai khóa ngẫu nhiên;
-không ghi đè file đã có. `APP_PORT=8001` cho phép chạy song song với container SQLite cũ:
-
-```powershell
-if (-not (Test-Path .env.compose)) {
-    $composeRng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-    try {
-        $composeDbBytes = New-Object byte[] 32
-        $composeJwtBytes = New-Object byte[] 48
-        $composeRng.GetBytes($composeDbBytes)
-        $composeRng.GetBytes($composeJwtBytes)
-        $composeDbPassword = [BitConverter]::ToString($composeDbBytes).Replace('-', '').ToLowerInvariant()
-        $composeJwtKey = [BitConverter]::ToString($composeJwtBytes).Replace('-', '').ToLowerInvariant()
-        $composeConfig = @(
-            "POSTGRES_PASSWORD=$composeDbPassword"
-            "JWT_SECRET_KEY=$composeJwtKey"
-            'APP_PORT=8001'
-            'SQL_ECHO=false'
-            'ACCESS_TOKEN_EXPIRE_MINUTES=30'
-            'CORS_ORIGINS=[]'
-        )
-        [System.IO.File]::WriteAllLines((Join-Path (Get-Location) '.env.compose'), $composeConfig, [System.Text.UTF8Encoding]::new($false))
-    } finally {
-        $composeRng.Dispose()
-    }
-}
-```
-
-Hoặc copy `.env.compose.example` thành `.env.compose`, tự điền hai khóa và chọn `APP_PORT`.
-Mật khẩu PostgreSQL được ghép vào URL nên dùng ký tự URL-safe như khóa hex ở trên;
-tránh các ký tự `@`, `:`, `/`, `#`, `%`, `$`. Khóa JWT cần ít nhất 32 byte UTF-8.
-Không đổi `POSTGRES_PASSWORD` sau khi database đã khởi tạo: biến này chỉ đặt mật khẩu
-trong lần khởi tạo volume trống; đổi mật khẩu DB hiện có cần thực hiện bằng SQL.
-
-### Khởi động, kiểm tra và cập nhật code
-
-Tại thư mục gốc project:
-
-```powershell
-docker compose --env-file .env.compose config --quiet
-docker compose --env-file .env.compose up --build -d --wait
-docker compose --env-file .env.compose ps
-docker compose --env-file .env.compose logs --tail 50 app db
-```
-
-Với `APP_PORT=8001`, mở http://127.0.0.1:8001/ hoặc http://127.0.0.1:8001/docs.
-Nếu chọn `APP_PORT=8000`, dùng cổng 8000 và dừng container cũ đang chiếm cổng đó.
-Hai container xuất hiện trong nhóm `student-management` trên Docker Desktop.
-Khi sửa code, chạy lại `up --build -d --wait`; Compose tự tạo lại app khi image thay đổi
-và gắn lại volume PostgreSQL, không cần tự điền form Run.
-
-Kiểm tra kết nối SQL từ chính container app, không in mật khẩu:
-
-```powershell
-docker compose --env-file .env.compose exec app python -c "from sqlalchemy import text; from app.core.database import engine; c=engine.connect(); print(c.execute(text('SELECT current_database(), current_user, version()')).one()); c.close()"
-```
-
-Mở terminal PostgreSQL để xem bảng:
-
-```powershell
-docker compose --env-file .env.compose exec db psql -U student -d student_management
-```
-
-Trong `psql`, dùng `\dt` để xem danh sách bảng, `SELECT id, username, role FROM users;`
-để xem tài khoản và `\q` để thoát.
-
-### Dừng và giữ dữ liệu
-
-```powershell
-docker compose --env-file .env.compose stop
-docker compose --env-file .env.compose start --wait
-```
-
-Hoặc xóa các container cùng network nhưng giữ volume:
-
-```powershell
-docker compose --env-file .env.compose down
-```
-
-Sau đó chạy lại `up --build -d --wait` để tạo lại container và dùng database cũ.
-Không thêm `-v` vào `down` nếu cần giữ dữ liệu PostgreSQL.
-Đây là database mới, độc lập với SQLite và Aiven; tài khoản/dữ liệu cũ không tự chuyển sang.
-
-### Kết quả chạy thử Compose ngày 30/10/2026
-
-- `config --quiet` hợp lệ; `up --build -d --wait` thành công, cả `app` và `db` đều healthy.
-- Kết nối SQL từ container app xác nhận PostgreSQL, hostname `db`, cổng `5432`, database `student_management` và database user `student`.
-- Cả ba migration đã áp dụng, revision hiện tại là `b82d4e5f6a70`.
-- Truy cập `/`, `/docs`, `/openapi.json` qua cổng 8001 đều trả HTTP `200`.
-- Đăng ký trả `201`, đăng nhập và đọc danh sách sinh viên trả `200`; tài khoản mới được kiểm tra trực tiếp trong PostgreSQL.
-- Tạo lại cả hai container bằng `up -d --force-recreate --wait` vẫn giữ dữ liệu trong volume `student-management_postgres-data`.
-- Tài khoản và bảng tạm phục vụ kiểm tra đã được xóa sau khi xác nhận.
+- Không nhận lệnh Docker: kiểm tra cài đặt/PATH và mở lại terminal.
+- Không kết nối engine: mở Docker Desktop, đợi engine sẵn sàng.
+- Thiếu secret: điền `POSTGRES_PASSWORD` và `JWT_SECRET_KEY` trong `.env`.
+- Cổng HTTP đang dùng: đổi `APP_PORT` sang cổng trống rồi chạy lại `up`; cổng trong app vẫn là 8000.
+- Sai mật khẩu PostgreSQL với volume cũ: dùng mật khẩu lúc volume được khởi tạo; sửa biến môi trường không tự đổi mật khẩu trong database.
+- Redis lỗi sau khi ứng dụng đã khởi động: API đọc database; cache cũ có thể tồn tại đến khi TTL hết nếu invalidation không thực hiện được.
 
 Tham khảo: [Compose networking](https://docs.docker.com/compose/how-tos/networking/),
 [startup order](https://docs.docker.com/compose/how-tos/startup-order/),

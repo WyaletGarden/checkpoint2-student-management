@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.api.deps import require_admin
 from app.schemas.student import StudentCreate, StudentUpdate, StudentResponse, StudentSort
 from app.services.student_service import StudentService
+from app.services.student_cache import read_student_list_cache, write_student_list_cache
 
 router = APIRouter(prefix="/students", tags=["Students"])
 
@@ -18,9 +19,17 @@ def get_students(
     q: str | None = Query(None, max_length=100),
     db: Session = Depends(get_db)
 ):
+    cache_key, cached = read_student_list_cache(
+        class_id=class_id, sort_by=sort_by, skip=skip, limit=limit, q=q,
+    )
+    if cached is not None:
+        response.headers["X-Total-Count"] = str(cached.total)
+        return cached.students
+
     students, total = StudentService.get_all_students(
         db, class_id=class_id, sort_by=sort_by, skip=skip, limit=limit, q=q
     )
+    write_student_list_cache(cache_key, students, total)
     response.headers["X-Total-Count"] = str(total)
     return students
 

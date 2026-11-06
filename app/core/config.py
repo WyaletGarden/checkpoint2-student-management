@@ -5,10 +5,17 @@ from urllib.parse import urlsplit
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Student Management API"
     DATABASE_URL: str = "sqlite:///./students.db"
+    # Shared .env also configures Compose; local Python does not need Postgres.
+    POSTGRES_PASSWORD: SecretStr | None = None
+    APP_PORT: int = Field(default=8002, ge=1, le=65535)
     JWT_SECRET_KEY: SecretStr
     SQL_ECHO: bool = False
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, gt=0)
     CORS_ORIGINS: list[str] = Field(default_factory=list)
+    REDIS_HOST: str = Field(default="localhost", min_length=1)
+    REDIS_PORT: int = Field(default=6379, ge=1, le=65535)
+    STUDENTS_CACHE_TTL_SECONDS: int = Field(default=60, ge=0)
+    STUDENTS_CACHE_NAMESPACE: str = Field(default="student-management", min_length=1)
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod

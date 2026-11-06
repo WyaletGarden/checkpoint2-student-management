@@ -109,6 +109,8 @@ python-multipart==0.0.32
     # via fastapi
 pyyaml==6.0.3
     # via uvicorn
+redis==8.1.0
+    # via student-management (pyproject.toml)
 rich==15.0.0
     # via
     #   rich-toolkit

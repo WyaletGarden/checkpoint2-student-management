@@ -5,6 +5,7 @@ os.environ["JWT_SECRET_KEY"] = "test-only-jwt-signing-key-do-not-use-in-producti
 
 import pytest
 from fastapi.testclient import TestClient
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -23,6 +24,60 @@ engine = create_engine(
     poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+class FakeStudentCacheRedis:
+    """Small clock-controlled Redis substitute; tests never share a live cache."""
+
+    def __init__(self):
+        self.data = {}
+        self.expires = {}
+        self.clock = 0
+        self.get_calls = 0
+        self.set_calls = 0
+        self.fail_get = False
+        self.fail_set = False
+
+    def advance(self, seconds):
+        self.clock += seconds
+
+    def get(self, key):
+        self.get_calls += 1
+        if self.fail_get:
+            raise RedisConnectionError("Redis read unavailable in test")
+        deadline = self.expires.get(key)
+        if deadline is not None and deadline <= self.clock:
+            self.data.pop(key, None)
+            self.expires.pop(key, None)
+        return self.data.get(key)
+
+    def set(self, key, value, ex=None, nx=False):
+        self.set_calls += 1
+        if self.fail_set:
+            raise RedisConnectionError("Redis write unavailable in test")
+        deadline = self.expires.get(key)
+        if deadline is not None and deadline <= self.clock:
+            self.data.pop(key, None)
+            self.expires.pop(key, None)
+        if nx and key in self.data:
+            return None
+        self.data[key] = value
+        if ex is None:
+            self.expires.pop(key, None)
+        else:
+            self.expires[key] = self.clock + ex
+        return True
+
+
+@pytest.fixture(autouse=True)
+def student_cache_redis(monkeypatch):
+    from app.core.config import settings
+    from app.services import student_cache
+
+    cache = FakeStudentCacheRedis()
+    monkeypatch.setattr(student_cache, "redis_client", cache)
+    monkeypatch.setattr(settings, "STUDENTS_CACHE_TTL_SECONDS", 60)
+    return cache
 
 
 def override_get_db():

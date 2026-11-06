@@ -4,6 +4,7 @@ from typing import List, Optional
 from app.crud import crud_teacher
 from app.schemas.teacher_schema import TeacherCreate, TeacherUpdate
 from app.core.logger import get_logger
+from app.services.student_cache import invalidate_student_list_cache
 
 logger = get_logger(__name__)
 
@@ -39,6 +40,7 @@ class TeacherService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy giảng viên với ID {teacher_id} để cập nhật"
             )
+        invalidate_student_list_cache()
         return updated
 
     @staticmethod
@@ -50,4 +52,5 @@ class TeacherService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy giảng viên với ID {teacher_id} để xóa"
             )
+        invalidate_student_list_cache()
         return deleted

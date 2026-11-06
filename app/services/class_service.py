@@ -6,6 +6,7 @@ from app.models.teacher import Teacher
 from app.models.student import Student
 from app.schemas.class_schema import ClassCreate, ClassUpdate
 from app.core.logger import get_logger
+from app.services.student_cache import invalidate_student_list_cache
 
 logger = get_logger(__name__)
 
@@ -59,6 +60,7 @@ class ClassService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy lớp học với ID {class_id} để cập nhật"
             )
+        invalidate_student_list_cache()
         return updated
 
     @staticmethod

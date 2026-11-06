@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: student_management
       POSTGRES_USER: student
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.compose}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -17,26 +17,44 @@ services:
       retries: 10
       start_period: 10s
 
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    # Cache is disposable; PostgreSQL is the source of truth.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: student-management:compose
+    image: ${APP_IMAGE:-student-management:compose}
     restart: unless-stopped
     environment:
       # Use the service name and container port, not localhost or a host port.
       # POSTGRES_PASSWORD must be URL-safe; generate it as described in DOCKER.md.
-      DATABASE_URL: postgresql+psycopg://student:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.compose}@db:5432/student_management
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env.compose}
+      DATABASE_URL: postgresql+psycopg://student:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/student_management
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
       SQL_ECHO: "${SQL_ECHO:-false}"
       ACCESS_TOKEN_EXPIRE_MINUTES: "${ACCESS_TOKEN_EXPIRE_MINUTES:-30}"
       CORS_ORIGINS: "${CORS_ORIGINS:-[]}"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      STUDENTS_CACHE_TTL_SECONDS: "${STUDENTS_CACHE_TTL_SECONDS:-60}"
+      STUDENTS_CACHE_NAMESPACE: "${STUDENTS_CACHE_NAMESPACE:-student-management}"
     ports:
-      - "127.0.0.1:${APP_PORT:-8000}:8000"
+      - "127.0.0.1:${APP_PORT:-8002}:8000"
     depends_on:
       db:
         condition: service_healthy
         restart: true
+      redis:
+        condition: service_healthy
     command:
       - /bin/sh
       - -c

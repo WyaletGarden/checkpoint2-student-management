@@ -5,6 +5,7 @@ from app.models.class_model import Class
 from app.schemas.student import StudentCreate, StudentUpdate, StudentSort
 from app.models.student import Student
 from app.core.logger import get_logger
+from app.services.student_cache import invalidate_student_list_cache
 
 logger = get_logger(__name__)
 
@@ -44,7 +45,9 @@ class StudentService:
                 detail=f"Lớp học với ID {student_in.class_id} không tồn tại."
             )
             
-        return crud_student.create_student(db=db, student=student_in)
+        created = crud_student.create_student(db=db, student=student_in)
+        invalidate_student_list_cache()
+        return created
 
     @staticmethod
     def update_existing_student(db: Session, student_id: int, student_in: StudentUpdate):
@@ -64,6 +67,7 @@ class StudentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy học sinh với ID {student_id} để cập nhật"
             )
+        invalidate_student_list_cache()
         return updated
 
     @staticmethod
@@ -75,4 +79,5 @@ class StudentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Không tìm thấy học sinh với ID {student_id} để xóa"
             )
+        invalidate_student_list_cache()
         return deleted
